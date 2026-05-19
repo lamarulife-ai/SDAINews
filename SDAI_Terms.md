@@ -137,7 +137,7 @@ The Publisher is not responsible for the availability, accuracy, content, or pra
 
 ## 12. Privacy
 
-Your use of the App is also governed by our [Privacy Policy](https://lamarulife-ai.github.io/SDAINews/SDAI_Privacy.md), which is incorporated into these Terms by reference. The Privacy Policy explains the (very limited) data the App handles and confirms that no personal data is collected or transmitted.
+Your use of the App is also governed by our [Privacy Policy](https://lamarulife-ai.github.io/SDAINews/SDAI_Privacy), which is incorporated into these Terms by reference. The Privacy Policy explains the (very limited) data the App handles and confirms that no personal data is collected or transmitted.
 
 ---
 
