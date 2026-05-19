@@ -4,7 +4,7 @@
 **Last updated:** 18 May 2026
 **Applies to:** SD AI News for Android (package `com.sdai.news`), all versions from v1.0.0 onwards.
 
-This Privacy Policy is published alongside the [Terms of Use](./SDAI_Terms.md) and the [Publisher / Contact information](./SDAI_Contact.md). Together they form the complete set of public-facing legal documents for SD AI News.
+This Privacy Policy is published alongside the [Terms of Use](./SDAI_Terms) and the [Publisher / Contact information](./SDAI_Contact). Together they form the complete set of public-facing legal documents for SD AI News.
 
 ---
 
@@ -201,15 +201,15 @@ Continued use of the app after a change constitutes acceptance of the revised po
 
 | Date | App version | Change |
 |------|-------------|--------|
-| 2026-05-18 | v1.0.3 | Added: disclaimer-acceptance flag (local-only) listed in §4; in-app Report-content email flow described in §7; cross-links to the new [Terms of Use](./SDAI_Terms.md). Clarified that widget + daily notification are gated by Disclaimer acceptance. Added explicit reference to DPDP Act / GDPR rights handling in §13. |
+| 2026-05-18 | v1.0.3 | Added: disclaimer-acceptance flag (local-only) listed in §4; in-app Report-content email flow described in §7; cross-links to the new [Terms of Use](./SDAI_Terms). Clarified that widget + daily notification are gated by Disclaimer acceptance. Added explicit reference to DPDP Act / GDPR rights handling in §13. |
 | 2026-05-18 | v1.0.0 | Initial release. |
 
 ---
 
 ## 18. Related documents
 
-- **Terms of Use** — [./SDAI_Terms.md](./SDAI_Terms.md)
-- **Publisher / Contact information** — [./SDAI_Contact.md](./SDAI_Contact.md)
+- **Terms of Use** — [./SDAI_Terms](./SDAI_Terms)
+- **Publisher / Contact information** — [./SDAI_Contact](./SDAI_Contact)
 
 These three documents together describe everything the app does, what you agree to by using it, and how to reach a real person.
 
