@@ -32,7 +32,7 @@ For privacy questions, please write to the email above with "SD AI News — Priv
 
 SD AI News aggregates publicly available headlines about artificial intelligence from a fixed list of established publishers and public RSS / JSON endpoints (MarkTechPost, Artificial Intelligence News, Unite.AI, TechCrunch, The Verge, VentureBeat, Wired, Ars Technica, Reddit, OKSURF, Google News RSS). It does **not** produce original journalism, does **not** edit headlines, and does **not** rank or comment on the news it displays. Each card links back to the original publisher.
 
-The app collects no personal data and uses no third-party SDKs. See the [Privacy Policy](./SDAI_Privacy.md) for full detail.
+The app collects no personal data and uses no third-party SDKs. See the [Privacy Policy](./SDAI_Privacy) for full detail.
 
 ---
 
