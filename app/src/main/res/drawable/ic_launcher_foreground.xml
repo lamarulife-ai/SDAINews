@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground. The 108dp canvas is masked down to ~72dp
+     by the system launcher, so we inset the full SD AI News logo by
+     18dp on each side. That places the logo inside the visible-area
+     safe zone — the tagline at the bottom isn't clipped by round /
+     squircle masks. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:left="18dp"
+        android:top="18dp"
+        android:right="18dp"
+        android:bottom="18dp">
+        <bitmap
+            android:src="@drawable/sdai_logo"
+            android:gravity="fill_horizontal|fill_vertical" />
+    </item>
+</layer-list>

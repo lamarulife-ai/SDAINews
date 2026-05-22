@@ -1,0 +1,7 @@
+# Copy this file to `local.properties` (gitignored) and fill in your
+# SDK path. SD AI News no longer needs any API keys — every news
+# source is a public, no-auth endpoint.
+
+# Path to the Android SDK. Android Studio auto-populates this on first
+# sync; leaving it blank is fine if you've set ANDROID_HOME.
+sdk.dir=
