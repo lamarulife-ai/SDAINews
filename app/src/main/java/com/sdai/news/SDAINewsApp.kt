@@ -8,6 +8,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import com.sdai.news.data.PrefsStore
+import com.sdai.news.data.remote.HttpClient
 import com.sdai.news.notify.DailyDigestWorker
 
 /**
@@ -28,7 +29,9 @@ class SDAINewsApp : Application(), ImageLoaderFactory {
         super.onCreate()
         prefs = PrefsStore(this)
         instance = this
+        HttpClient.init(this)
         DailyDigestWorker.schedule(this)
+        com.sdai.news.notify.ArxivRefreshWorker.schedule(this)
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

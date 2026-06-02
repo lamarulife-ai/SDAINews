@@ -15,20 +15,31 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ArticleDao {
 
-    // The feed only surfaces articles that have a hero image — items
-    // without one are still persisted (the og:image scraper may patch
-    // them later) but stay hidden until then.
+    // Image-first display: items without a hero image are visible
+    // immediately with a source-letter placeholder. When the og:image
+    // backfill arrives, setImageUrl() updates the row reactively and
+    // the UI swaps in the real image. Feels dramatically faster than
+    // waiting for every article to have its image.
+    //
+    // Ranking: weight (per-source quality 0-10) primary, recency
+    // secondary. The 24h cache sweep keeps everything fresh enough
+    // that weight-first never pins old content.
     @Query(
         "SELECT * FROM articles " +
-            "WHERE imageUrl IS NOT NULL AND imageUrl != '' " +
-            "ORDER BY publishedAtMillis DESC LIMIT :limit"
+            "ORDER BY weight DESC, publishedAtMillis DESC LIMIT :limit"
     )
     fun observeRecent(limit: Int = 200): Flow<List<ArticleEntity>>
 
+    /** Same as [observeRecent], filtered to a single tier chip. */
+    @Query(
+        "SELECT * FROM articles WHERE tier = :tier " +
+            "ORDER BY weight DESC, publishedAtMillis DESC LIMIT :limit"
+    )
+    fun observeByTier(tier: String, limit: Int = 200): Flow<List<ArticleEntity>>
+
     @Query(
         "SELECT * FROM articles " +
-            "WHERE imageUrl IS NOT NULL AND imageUrl != '' " +
-            "ORDER BY publishedAtMillis DESC LIMIT :limit"
+            "ORDER BY weight DESC, publishedAtMillis DESC LIMIT :limit"
     )
     suspend fun recent(limit: Int = 200): List<ArticleEntity>
 

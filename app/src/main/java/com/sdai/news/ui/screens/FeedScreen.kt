@@ -4,16 +4,23 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.VerticalPager
@@ -48,6 +55,9 @@ import com.sdai.news.ui.components.ArticleCard
 import com.sdai.news.ui.components.WellnessOverlay
 import com.sdai.news.ui.theme.Sdai
 import com.sdai.news.util.Share
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.sdai.news.viewmodel.FeedTier
 import com.sdai.news.viewmodel.FeedUiState
 import com.sdai.news.viewmodel.FeedViewModel
 
@@ -62,6 +72,7 @@ fun FeedScreen(
     val status by vm.status.collectAsState()
     val bookmarkIds by vm.bookmarkIds.collectAsState()
     val isRefreshing by vm.isRefreshing.collectAsState()
+    val selectedTier by vm.selectedTier.collectAsState()
     val ctx = LocalContext.current
 
     val wellnessEnabled by SDAINewsApp.get().prefs.wellnessEnabled
@@ -159,17 +170,22 @@ fun FeedScreen(
             }
         }
 
-        // Top app-bar — anchored top-right so it doesn't intercept
-        // pager touches across the rest of the screen.
+        // Top app-bar — chip filter strip on the left, action icons
+        // on the right, sharing a single row that overlays the top
+        // of the pager. Pager touches outside this row still work.
         Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Refresh — swaps for a spinner while a fetch is in flight.
-            // Disabled state lives in the VM (no double-tap fan-out).
+            TierChipRow(
+                selected = selectedTier,
+                onSelect = vm::selectTier,
+                modifier = Modifier.weight(1f),
+            )
             IconButton(
                 onClick = { vm.refresh(scrollToTop = true) },
                 enabled = !isRefreshing,
@@ -230,6 +246,45 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = onRetry) {
                 Text("Retry", color = Sdai.primary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/**
+ * Horizontal scrolling row of FeedTier pills. The selected pill is
+ * filled with the brand primary; others are translucent so they
+ * read cleanly over hero images without a hard scrim.
+ */
+@Composable
+private fun TierChipRow(
+    selected: FeedTier,
+    onSelect: (FeedTier) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items(FeedTier.values()) { tier ->
+            val isSelected = tier == selected
+            val bg = if (isSelected) Sdai.primary else Color.Black.copy(alpha = 0.55f)
+            val fg = if (isSelected) Color.Black else Sdai.ink
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(bg)
+                    .clickable { onSelect(tier) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = tier.label,
+                    color = fg,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                )
             }
         }
     }

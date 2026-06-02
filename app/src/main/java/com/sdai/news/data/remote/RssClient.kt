@@ -2,13 +2,11 @@ package com.sdai.news.data.remote
 
 import android.util.Xml
 import com.sdai.news.util.HtmlText
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 /**
  * Generic RSS 2.0 / Atom feed reader. Works for Google News search
@@ -30,10 +28,7 @@ object RssClient {
         val imageUrl: String?,
     )
 
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val http get() = HttpClient.instance
 
     fun fetch(feedUrl: String): List<RssItem> {
         return runCatching {
@@ -78,12 +73,27 @@ object RssClient {
                             source = StringBuilder()
                             image = null
                         }
-                        inItem && image == null -> when (tag) {
+                        inItem -> when (tag) {
+                            // Atom: <link href="..." rel="alternate"/>
+                            // RSS:  <link>text</link>  (handled in TEXT branch)
+                            // We only grab Atom's href when no plain-text
+                            // link has accumulated yet AND when the rel
+                            // attribute is missing or "alternate".
+                            "link" -> {
+                                val href = parser.getAttributeValue(null, "href")
+                                if (!href.isNullOrBlank() && link.isEmpty()) {
+                                    val rel = parser.getAttributeValue(null, "rel")
+                                    if (rel == null || rel.equals("alternate", true)) {
+                                        link.append(href)
+                                    }
+                                }
+                            }
                             // <media:content url="..."> / <media:thumbnail url="...">
-                            "media:content", "media:thumbnail" ->
+                            "media:content", "media:thumbnail" -> if (image == null) {
                                 image = parser.getAttributeValue(null, "url")
+                            }
                             // <enclosure url="..." type="image/jpeg">
-                            "enclosure" -> {
+                            "enclosure" -> if (image == null) {
                                 val type = parser.getAttributeValue(null, "type")
                                 if (type == null || type.startsWith("image", ignoreCase = true)) {
                                     image = parser.getAttributeValue(null, "url")

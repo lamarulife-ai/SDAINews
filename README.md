@@ -23,19 +23,24 @@ No accounts. No API keys. No tracking. No ads. No monetisation. Built once to ru
 
 ## Zero-maintenance news pipeline
 
-Five independent source layers run in parallel on every refresh. Each layer is wrapped in its own error-isolated `async`; one provider going down can't take the feed offline.
+Seven independent source layers run in parallel on every refresh, plus a periodic background worker for arXiv. Each layer is wrapped in its own error-isolated `async`; one provider going down can't take the feed offline. All HTTP traffic goes through a shared OkHttp client with a 10 MiB on-disk cache (handles `304 Not Modified` natively) and a browser-shaped User-Agent (so Cloudflare-protected sources stop returning 403s).
 
 | # | Layer | Endpoints | Has images? |
 |---|---|---|---|
 | 1 | **WordPress JSON** | MarkTechPost · Artificial Intelligence News · Unite.AI (`/wp-json/wp/v2/posts?_embed=true`) | yes (featured media) |
-| 2 | **Reddit `.json`** | r/ArtificialInteligence · r/MachineLearning · r/singularity · r/OpenAI · r/LocalLLaMA | yes (`preview.images`) |
+| 2 | **Reddit `.json`** (quality-gated) | r/ArtificialInteligence · r/MachineLearning · r/singularity · r/OpenAI · r/LocalLLaMA · r/StableDiffusion | yes (`preview.images`) |
 | 3 | **OKSURF** | `ok.surf/api/v1/technology` — Google News aggregator JSON | sometimes |
-| 4 | **Google News RSS** | rotating 4-of-12 AI query subset on every refresh | filled in by og:image scraper |
-| 5 | **Direct publisher RSS** | TechCrunch AI · The Verge AI · VentureBeat AI · Wired AI · Ars Technica | yes (`media:content`) |
+| 4 | **Google News RSS** | 12 brand-name queries (OpenAI, Anthropic, DeepMind, Meta AI, Mistral, Claude, Gemini, GPT-4/5, Llama, Sora, Perplexity); rotates 4 per refresh | og:image backfill |
+| 5 | **Direct RSS + GitHub Atom** | 5 tech publishers + 10 first-party AI lab blogs (Anthropic / OpenAI / DeepMind / Meta AI / NVIDIA / HuggingFace / Microsoft / AWS / Google Research) + 3 GitHub release feeds (Ollama / vLLM / PyTorch) | yes (`media:content`) |
+| 6 | **Hacker News (Algolia)** | 14 domain-restricted + 6 term queries with `points ≥ 50` filter | og:image backfill |
+| 7 | **HuggingFace daily papers** | `huggingface.co/api/daily_papers` — trending arXiv papers with summaries | yes (thumbnails) |
+| Worker | **arXiv Atom** | cs.AI / cs.LG / cs.CL — refreshed every 6 h via WorkManager (arXiv rate-limits hard) | placeholder |
 
-After fetch, articles are **deduped by normalised title** — same article from multiple sources collapses to a single row, preferring the variant with both image and description.
+**Quality pipeline.** After fetch, articles flow through six gates: spam-pattern regex → English-only filter → exact-match dedup → Jaccard token-overlap dedup → source diversity cap (no source > 20 % of feed) → upsert with per-source quality weight (Anthropic / OpenAI / DeepMind = 10; NVIDIA / HuggingFace = 9; TechCrunch = 8; Hacker News = 7; Reddit = 4; Google News = 3). Reddit posts must hit `score ≥ 100 AND comments ≥ 20`, or contain a flagship AI keyword, to make it through.
 
-Articles without images stay hidden until the **og:image scraper** (parallel, 6-way concurrent, 20 s budget) fills them in — the DAO query filters on `imageUrl IS NOT NULL`, so the feed always looks visual.
+**Image-first display.** Articles appear in the feed immediately with a source-letter placeholder; the og:image scraper (parallel, 6-way concurrent, 20 s budget) updates rows reactively as images arrive.
+
+For the deeper write-up — full feed lists, healthy-refresh metrics, contributor recipes, pre-release checklist — see [`TECHNICAL_DOCS.md`](TECHNICAL_DOCS.md).
 
 ## Architecture
 
@@ -46,14 +51,17 @@ com.sdai.news
 │   ├── ArticleRepository.kt             — Source fan-out + dedup + image enrichment
 │   ├── PrefsStore.kt                    — DataStore (theme, wellness toggle)
 │   ├── db/                              — Room: SDAIDatabase + Article/Bookmark entities + DAOs
-│   └── remote/                          — 5 source clients + OgImageFetcher
+│   └── remote/                          — shared HTTP + 7 source clients + OgImageFetcher
+│       ├── HttpClient.kt                — shared OkHttp + 10 MiB cache + browser UA
 │       ├── WordPressClient.kt
-│       ├── RedditClient.kt
+│       ├── RedditClient.kt              — quality-gated (score / comments / flagship keyword)
 │       ├── OksurfClient.kt
-│       ├── RssClient.kt                 — generic RSS 2.0 / Atom reader
+│       ├── RssClient.kt                 — RSS 2.0 / Atom 1.0 reader
+│       ├── HackerNewsClient.kt          — Algolia, domain + term queries, points ≥ 50
+│       ├── HuggingFaceClient.kt         — daily_papers trending paper feed
 │       └── OgImageFetcher.kt            — meta-tag scraper for images
 ├── viewmodel/
-│   └── FeedViewModel.kt                 — status / isRefreshing / scrollToTopRequests
+│   └── FeedViewModel.kt                 — status / isRefreshing / selectedTier / scrollToTopRequests
 ├── ui/
 │   ├── theme/                           — 3-palette theme system
 │   ├── components/                      — ArticleCard, WellnessOverlay
@@ -65,7 +73,8 @@ com.sdai.news
 │   ├── TimeAgo.kt
 │   └── ReadingTime.kt
 ├── notify/
-│   └── DailyDigestWorker.kt             — WorkManager daily 8 AM push
+│   ├── DailyDigestWorker.kt             — WorkManager daily 8 AM push
+│   └── ArxivRefreshWorker.kt            — WorkManager periodic arXiv pull (6 h)
 ├── widget/
 │   └── HeadlineWidget.kt                — Glance home-screen widget
 ├── SDAINewsApp.kt                       — Application class (schedules daily worker)
@@ -97,7 +106,40 @@ No location, camera, contacts, calendar, microphone, or storage access is reques
 
 ## Version
 
-V1.0.4 (version code 5) — initial public release.
+**v1.1.0 (version code 6)** — Quality pass + content expansion.
+
+### v1.1.0 — release notes
+
+**Content sources (expanded from 5 layers to 7 + 1 worker)**
+- Added 10 first-party AI lab RSS feeds: Anthropic news + research, OpenAI, DeepMind, Google Research, Meta AI, HuggingFace, NVIDIA Developer, AWS ML, Microsoft AI.
+- Added 3 GitHub release Atom feeds: Ollama, vLLM, PyTorch — open-source AI infra updates land in the feed.
+- New Hacker News client (Algolia, points-thresholded, 14 domain-restricted + 6 term queries).
+- New HuggingFace daily-papers client (trending community-curated arXiv papers with summaries).
+- New arXiv worker: pulls cs.AI / cs.LG / cs.CL every 6 hours via WorkManager (arXiv rate-limits hard, so kept off the pull-to-refresh path).
+- Added r/StableDiffusion to the Reddit sub list.
+
+**Quality pipeline (six gates now, was three)**
+- Smarter English filter: Latin-script ratio + foreign-tell veto (Spanish / French / German / Italian / Portuguese function words) + English stopword sentinel for longer titles.
+- Token-overlap Jaccard dedup as a second pass — collapses headline variants the exact-match dedup misses.
+- Spam regex: drops listicle bait ("Top 10 AI Tools"), ultimate-guide bait, clickbait shockers, vendor PR lead-ins ("Acme today announced…").
+- Source diversity cap: no single source may occupy more than 20 % of the visible feed.
+- Per-source quality weighting (0-10): first-party labs rank above tech press, which ranks above Reddit / Google News.
+- Reddit quality gate: posts require `score ≥ 100 AND comments ≥ 20`, OR a flagship AI keyword in the title. Cuts ~70 % of Reddit volume.
+- Google News query pool pivoted from broad terms to brand names (OpenAI / Anthropic / Claude / Gemini / etc.) — much higher signal.
+
+**UX**
+- **Image-first display.** Articles appear instantly with a source-letter placeholder; images stream in as the og:image scraper finds them. Previously the DAO hid image-less rows entirely, making the feed feel slow.
+- **Tier filter chips** — top-bar pill row with `All / Breaking / Industry / Community / Research`. Tap to focus on lab announcements, news pubs, social, or research papers.
+
+**Infrastructure**
+- Shared OkHttp client with 10 MiB on-disk cache (`304 Not Modified` for free across all RSS layers — second consecutive refresh is now < 1 s).
+- Browser-shaped User-Agent (Cloudflare / Imperva / Akamai stop 403-ing the og:image scraper).
+- Fixed an Atom `<link href>` parsing bug in `RssClient` — previously dropped links from arXiv, Google Research, and any other Atom feed.
+
+**Schema**
+- Articles table v1 → v2: added `weight` and `tier` columns. Explicit migration preserves existing bookmarks.
+
+### v1.0.4 (version code 5) — initial public release
 
 ## Why this exists
 

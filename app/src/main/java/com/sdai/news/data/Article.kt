@@ -21,4 +21,7 @@ data class Article(
     val source: String,
     val category: String?,
     val publishedAtMillis: Long,
+    val weight: Int = 0,
+    /** "breaking" | "industry" | "community" | "research" | null */
+    val tier: String? = null,
 )

@@ -1,11 +1,9 @@
 package com.sdai.news.data.remote
 
 import com.sdai.news.util.HtmlText
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 /**
  * OKSURF — a public Google News aggregator that ships JSON.
@@ -31,10 +29,7 @@ object OksurfClient {
         val imageUrl: String?,
     )
 
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val http get() = HttpClient.instance
 
     /** Fetches the Technology category — the closest fit for AI news. */
     fun fetchTechnology(): List<OksurfItem> = fetch("https://ok.surf/api/v1/technology")

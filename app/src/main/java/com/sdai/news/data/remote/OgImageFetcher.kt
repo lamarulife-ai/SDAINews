@@ -1,9 +1,7 @@
 package com.sdai.news.data.remote
 
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URI
-import java.util.concurrent.TimeUnit
 
 /**
  * Fetches the Open Graph image URL for a given article URL by GETting
@@ -23,13 +21,9 @@ object OgImageFetcher {
     // Aggressive timeouts. Cloudflare / DDoS-protected sites return a
     // CAPTCHA HTML page rather than 4xx — we'd waste seconds parsing it
     // for an og:image that isn't there. Fail fast, drop, move on.
-    private val http = OkHttpClient.Builder()
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(4, TimeUnit.SECONDS)
-        .callTimeout(6, TimeUnit.SECONDS)
-        .build()
+    // Uses [HttpClient.fast] so we share the same cache + connection
+    // pool as the rest of the app, just with tighter timeouts.
+    private val http get() = HttpClient.fast
 
     // Two regex variants — content attribute can appear before OR after
     // the property attribute, depending on the publisher's CMS.

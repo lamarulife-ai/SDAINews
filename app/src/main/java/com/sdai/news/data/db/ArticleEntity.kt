@@ -21,6 +21,20 @@ data class ArticleEntity(
     val category: String?,
     val publishedAtMillis: Long,
     val fetchedAtMillis: Long,
+    /**
+     * Quality weight 0-10 (higher = more prominent in the feed). Set
+     * once at upsert time by [com.sdai.news.data.ArticleRepository].
+     * Used by [ArticleDao.observeRecent] as the primary sort key
+     * before recency.
+     */
+    val weight: Int = 0,
+    /**
+     * Coarse category for filter chips ("breaking", "industry",
+     * "community", "research"). Derived from the source string at
+     * upsert time. Stored so the chip filter can use a simple
+     * SQL WHERE rather than computing it per row in Kotlin.
+     */
+    val tier: String? = null,
 ) {
     fun toArticle() = Article(
         id = id,
@@ -32,6 +46,8 @@ data class ArticleEntity(
         source = source,
         category = category,
         publishedAtMillis = publishedAtMillis,
+        weight = weight,
+        tier = tier,
     )
 
     companion object {
@@ -46,6 +62,8 @@ data class ArticleEntity(
             category = a.category,
             publishedAtMillis = a.publishedAtMillis,
             fetchedAtMillis = fetchedAtMillis,
+            weight = a.weight,
+            tier = a.tier,
         )
     }
 }

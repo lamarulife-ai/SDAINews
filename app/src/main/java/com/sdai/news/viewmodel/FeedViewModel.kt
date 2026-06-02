@@ -12,16 +12,35 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Top-level UI state for the feed. */
 sealed interface FeedUiState {
     data object Loading : FeedUiState
     data class Ready(val articles: List<Article>) : FeedUiState
     data class Error(val message: String) : FeedUiState
+}
+
+/**
+ * Filter-chip categories for the feed. Maps 1:1 to the tier strings
+ * persisted in [com.sdai.news.data.db.ArticleEntity.tier].
+ *  - ALL: no filter
+ *  - BREAKING: first-party AI lab blogs (weight ≥ 9)
+ *  - INDUSTRY: established tech publications
+ *  - COMMUNITY: Reddit + Hacker News
+ *  - RESEARCH: HuggingFace papers + arXiv
+ */
+enum class FeedTier(val label: String, val sqlValue: String?) {
+    ALL("All", null),
+    BREAKING("Breaking", "breaking"),
+    INDUSTRY("Industry", "industry"),
+    COMMUNITY("Community", "community"),
+    RESEARCH("Research", "research"),
 }
 
 /**
@@ -35,6 +54,7 @@ sealed interface FeedUiState {
  *  - the most recent refresh error (or null if last refresh succeeded /
  *    is in flight)
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FeedViewModel(app: Application) : AndroidViewModel(app) {
 
     val repo = ArticleRepository(app.applicationContext)
@@ -43,13 +63,24 @@ class FeedViewModel(app: Application) : AndroidViewModel(app) {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _selectedTier = MutableStateFlow(FeedTier.ALL)
+    val selectedTier: StateFlow<FeedTier> = _selectedTier.asStateFlow()
+
+    fun selectTier(tier: FeedTier) {
+        _selectedTier.value = tier
+        scrollToTopEvents.trySend(Unit)
+    }
+
     // One-shot UI events. Conflated so a burst of refresh taps only
     // emits a single scroll; capacity=1 so we never block the producer.
     private val scrollToTopEvents = Channel<Unit>(capacity = Channel.CONFLATED)
     val scrollToTopRequests: Flow<Unit> = scrollToTopEvents.receiveAsFlow()
 
+    private val articles: Flow<List<Article>> = _selectedTier
+        .flatMapLatest { tier -> repo.observeArticlesByTier(tier.sqlValue) }
+
     val status: StateFlow<FeedUiState> = combine(
-        repo.observeArticles(),
+        articles,
         refreshError,
     ) { articles, err ->
         when {
