@@ -67,7 +67,12 @@ object HackerNewsClient {
 
     private val http get() = HttpClient.instance
 
-    /** Top-level entry — fans out into ~20 parallel queries and merges. */
+    /**
+     * Top-level entry — fans out into ~20 parallel queries and
+     * merges. Capped at [MAX_TOTAL_HITS] after dedup to limit
+     * downstream dedup / upsert work; HN volume can be huge on busy
+     * days. Highest-points hits win when we trim.
+     */
     fun fetchAll(): List<HnItem> {
         val byDomain = firstPartyDomains.flatMap { domain ->
             runCatching { searchByDomain(domain) }.getOrDefault(emptyList())
@@ -78,6 +83,8 @@ object HackerNewsClient {
         return (byDomain + byTerm)
             .distinctBy { it.link }
             .filter { it.title.isNotBlank() && it.link.startsWith("http") }
+            .sortedByDescending { it.points }
+            .take(MAX_TOTAL_HITS)
     }
 
     private fun searchByDomain(domain: String): List<HnItem> {
@@ -139,6 +146,11 @@ object HackerNewsClient {
         }.getOrDefault(emptyList())
     }
 
-    private const val HITS_PER_PAGE = 10
+    private const val HITS_PER_PAGE = 8
     private const val MIN_POINTS = 50
+
+    /** Cap merged-and-deduped HN hits before they leave this client.
+     *  Downstream dedup / weighting still ranks the survivors; this
+     *  just keeps the per-refresh parse work bounded. */
+    private const val MAX_TOTAL_HITS = 30
 }

@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -51,6 +50,7 @@ class ArticleRepository(
     private val db = SDAIDatabase.get(context)
     private val articleDao = db.articleDao()
     private val bookmarkDao = db.bookmarkDao()
+    private val prefs = PrefsStore(context.applicationContext)
 
     private val bgScope = CoroutineScope(SupervisorJob() + io)
     private val queryRotation = AtomicInteger(0)
@@ -113,42 +113,121 @@ class ArticleRepository(
     fun observeBookmarks(): Flow<List<BookmarkEntity>> = bookmarkDao.observeAll()
     fun observeBookmarkIds(): Flow<List<String>> = bookmarkDao.observeIds()
 
+    /**
+     * Fan out to every source layer and merge results into Room.
+     *
+     * Three speed gates:
+     *  1. **Cache freshness short-circuit.** If the last full refresh
+     *     completed less than [FRESH_WINDOW_MS] ago AND there's
+     *     cached data, return 0 without hitting the network. Makes
+     *     warm app launches instant.
+     *  2. **Streaming upsert.** Each layer's results are upserted
+     *     into Room as soon as that layer completes — the Room flow
+     *     emits and the UI updates. The user sees first-party blog
+     *     posts in <1 s instead of waiting for the slowest layer
+     *     (Hacker News's ~20 fan-out queries).
+     *  3. **Per-layer throttle.** Each layer skips if its own
+     *     [lastFetchedMs] is within its [MIN_INTERVAL_MS]. Rapid
+     *     pull-to-refresh costs nothing for layers that already ran
+     *     recently.
+     *
+     * Returns the total fresh-row count (sum across layers that
+     * actually ran). Returns 0 when fully throttled — that's not
+     * an error; the cache is already current.
+     */
     suspend fun refresh(): Int = withContext(io) {
         val now = System.currentTimeMillis()
-        val googleQueries = pickGoogleQueries(count = 4)
 
-        val collected: List<Aggregated> = coroutineScope {
-            buildList {
-                // 1 — WordPress JSON (rich descriptions + featured images)
-                add(async { WordPressClient.fetchAll().map { it.toAggregated() } })
-                // 2 — Reddit hot AI subs (always image-backed posts only)
-                add(async { RedditClient.fetchAll().map { it.toAggregated() } })
-                // 3 — OKSURF Google News aggregator
-                add(async { OksurfClient.fetchTechnology().map { it.toAggregated() } })
-                // 4 — Google News RSS, rotating subset of the query pool
-                googleQueries.forEach { q ->
-                    add(async { rss(googleNewsUrl(q), isGoogleNews = true) })
-                }
-                // 5 — Direct publisher RSS feeds
-                directRssFeeds.forEach { url ->
-                    add(async { rss(url, isGoogleNews = false) })
-                }
-                // 6 — Hacker News (Algolia, points-thresholded)
-                add(async { HackerNewsClient.fetchAll().map { it.toAggregated() } })
-                // 7 — HuggingFace daily trending papers
-                add(async { HuggingFaceClient.fetchDailyPapers().map { it.toAggregated() } })
-            }.awaitAll().flatten()
+        // Gate 1 — full-cache freshness short-circuit. If we ran a
+        // full refresh recently and there's something in Room, skip
+        // entirely. Cold installs (cache empty) always proceed.
+        val lastFull = prefs.lastFullRefreshMs()
+        if (now - lastFull < FRESH_WINDOW_MS && articleDao.recent(limit = 1).isNotEmpty()) {
+            return@withContext 0
         }
 
-        if (collected.isEmpty()) {
+        val googleQueries = pickGoogleQueries(count = 4)
+        var totalNew = 0
+        val anyLayerRan = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        coroutineScope {
+            val jobs = buildList {
+                add(launch { totalNew += runLayer("wordpress", MIN_INTERVAL_WP_MS, anyLayerRan) {
+                    WordPressClient.fetchAll().map { it.toAggregated() }
+                } })
+                add(launch { totalNew += runLayer("reddit", MIN_INTERVAL_REDDIT_MS, anyLayerRan) {
+                    RedditClient.fetchAll().map { it.toAggregated() }
+                } })
+                add(launch { totalNew += runLayer("oksurf", MIN_INTERVAL_OKSURF_MS, anyLayerRan) {
+                    OksurfClient.fetchTechnology().map { it.toAggregated() }
+                } })
+                add(launch { totalNew += runLayer("hn", MIN_INTERVAL_HN_MS, anyLayerRan) {
+                    HackerNewsClient.fetchAll().map { it.toAggregated() }
+                } })
+                add(launch { totalNew += runLayer("hf", MIN_INTERVAL_HF_MS, anyLayerRan) {
+                    HuggingFaceClient.fetchDailyPapers().map { it.toAggregated() }
+                } })
+                add(launch { totalNew += runLayer("rss", MIN_INTERVAL_RSS_MS, anyLayerRan) {
+                    directRssFeeds.flatMap { rss(it, isGoogleNews = false) }
+                } })
+                // Google News queries: one layer per query so they
+                // throttle independently and stream as they finish.
+                googleQueries.forEach { q ->
+                    add(launch { totalNew += runLayer("gn:$q", MIN_INTERVAL_GN_MS, anyLayerRan) {
+                        rss(googleNewsUrl(q), isGoogleNews = true)
+                    } })
+                }
+            }
+            jobs.forEach { it.join() }
+        }
+
+        // Only mark the full refresh as complete if at least one
+        // layer actually fetched. Otherwise the throttle would skip
+        // forever if it ever got stuck.
+        if (anyLayerRan.get()) {
+            prefs.setLastFullRefreshMs(now)
+            articleDao.deleteOlderThan(now - 24L * 60 * 60 * 1000)
+        }
+        // Only surface a "network down" error on cold install — i.e.
+        // we attempted to fetch and got literally nothing, AND there's
+        // also nothing in the cache to fall back on. If we have any
+        // cached rows, swallow the error and let the user see the
+        // cache (the refresh icon goes back to its idle state).
+        if (totalNew == 0 && anyLayerRan.get() && articleDao.recent(limit = 1).isEmpty()) {
             throw IllegalStateException(
                 "Could not reach any news source. Check your internet connection and try again."
             )
         }
+        totalNew
+    }
 
-        val count = processAndUpsert(collected, now, enrichImagesAfter = true)
-        articleDao.deleteOlderThan(now - 24L * 60 * 60 * 1000)
-        count
+    /**
+     * Single-layer wrapper: throttle check → fetch → upsert. Each
+     * layer's results are pushed to Room independently so the UI
+     * updates incrementally instead of waiting for the slowest
+     * layer to complete.
+     */
+    private suspend fun runLayer(
+        name: String,
+        minIntervalMs: Long,
+        anyLayerRan: java.util.concurrent.atomic.AtomicBoolean,
+        fetcher: suspend () -> List<Aggregated>,
+    ): Int {
+        val now = System.currentTimeMillis()
+        val last = prefs.lastFetchedMs(name)
+        if (now - last < minIntervalMs) return 0  // throttled — too soon
+
+        val items = runCatching { fetcher() }.getOrDefault(emptyList())
+        anyLayerRan.set(true)
+        if (items.isEmpty()) {
+            // Mark fetched anyway so we don't hammer a momentarily-
+            // down endpoint on every refresh.
+            prefs.setLastFetchedMs(name, now)
+            return 0
+        }
+        val count = processAndUpsert(items, now, enrichImagesAfter = true)
+        prefs.setLastFetchedMs(name, now)
+        return count
     }
 
     /**
@@ -320,22 +399,53 @@ class ArticleRepository(
         return RssClient.fetch(url).map { it.toAggregated(isGoogleNews) }
     }
 
+    /**
+     * Background og:image sweeper.
+     *
+     * Replaces the previous 20 s-budgeted batch scraper. The old
+     * model meant ~30 articles got their image (6 semaphore slots ×
+     * 5 s per request × 20 s budget); the rest stayed image-less
+     * forever. The new model:
+     *
+     *  - **No overall timeout.** Per-request timeout stays at 6 s via
+     *    [HttpClient.fast]; that's plenty per article. The sweeper
+     *    runs as long as it takes.
+     *  - **Idempotent.** An in-flight set of article IDs prevents
+     *    a rapid second refresh from re-queueing items already being
+     *    scraped by the first.
+     *  - **10-permit semaphore** (was 6). More throughput per second
+     *    without hammering any one host (most articles come from
+     *    distinct domains).
+     *
+     * Articles whose link resolves to a real og:image get their row
+     * updated via [ArticleDao.setImageUrl]; Coil sees the URL change
+     * on the Flow and swaps the placeholder for the real image
+     * without a UI refresh.
+     */
     private suspend fun enrichImages(items: List<Aggregated>) {
-        val sem = Semaphore(6)
-        withTimeoutOrNull(20_000) {
-            coroutineScope {
-                items.forEach { item ->
-                    launch {
+        val sem = Semaphore(10)
+        coroutineScope {
+            items.forEach { item ->
+                val id = normalise(item.title).hashCode().toString()
+                if (!enrichInFlight.add(id)) return@forEach   // already being scraped
+                launch {
+                    try {
                         sem.withPermit {
                             val img = OgImageFetcher.fetch(item.link) ?: return@withPermit
-                            val id = normalise(item.title).hashCode().toString()
                             articleDao.setImageUrl(id, img)
                         }
+                    } finally {
+                        enrichInFlight.remove(id)
                     }
                 }
             }
         }
     }
+
+    /** IDs currently being scraped by [enrichImages] — prevents a
+     *  rapid second refresh from duplicating work in flight. */
+    private val enrichInFlight: java.util.concurrent.ConcurrentHashMap.KeySetView<String, Boolean> =
+        java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     suspend fun bookmark(article: Article) = withContext(io) {
         bookmarkDao.insert(
@@ -545,6 +655,32 @@ class ArticleRepository(
         const val SHORT_TITLE_WORDS = 5
         const val JACCARD_THRESHOLD = 0.80
         const val TIME_WINDOW_MS = 6L * 60L * 60L * 1000L  // 6 hours
+
+        // ── Refresh timing — controls cache freshness + per-source
+        //    throttling. All in milliseconds.
+
+        /** Skip the full refresh entirely if the cache is this fresh.
+         *  5 min = "the user just opened the app — don't re-fetch
+         *  everything just because they backgrounded for a minute." */
+        const val FRESH_WINDOW_MS = 5L * 60L * 1000L
+
+        /** First-party lab blogs publish rarely — 30 min throttle. */
+        const val MIN_INTERVAL_RSS_MS = 30L * 60L * 1000L
+
+        /** Google News, OKSURF — relatively fresh, 5–10 min. */
+        const val MIN_INTERVAL_GN_MS = 5L * 60L * 1000L
+        const val MIN_INTERVAL_OKSURF_MS = 10L * 60L * 1000L
+
+        /** Reddit / Hacker News — community velocity, 10 min. */
+        const val MIN_INTERVAL_REDDIT_MS = 10L * 60L * 1000L
+        const val MIN_INTERVAL_HN_MS = 10L * 60L * 1000L
+
+        /** HuggingFace daily papers refreshes once/24h upstream — no
+         *  point hitting it more than hourly. */
+        const val MIN_INTERVAL_HF_MS = 60L * 60L * 1000L
+
+        /** WordPress publishers post a few times a day — 15 min. */
+        const val MIN_INTERVAL_WP_MS = 15L * 60L * 1000L
 
         // Diversity cap — no single source > 20 % of the visible feed.
         // [MIN_FOR_CAP] avoids capping when the batch is tiny (early

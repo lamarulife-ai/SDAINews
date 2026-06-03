@@ -14,7 +14,16 @@ import java.util.Locale
  * that ships a standard feed.
  *
  * Captures title, link, pubDate, source, and any inline image we can
- * find (`<media:content>`, `<media:thumbnail>`, `<enclosure>`).
+ * find. Image extraction tries the following sources, in order, and
+ * keeps the first match:
+ *
+ *   1. `<media:content url="...">` / `<media:thumbnail url="...">`
+ *   2. `<enclosure url="..." type="image/...">`
+ *   3. First `<img src="...">` inside `<content:encoded>` or
+ *      `<description>` — many lab blogs (Anthropic, OpenAI, DeepMind,
+ *      Google Research, etc.) ship their hero image only inside the
+ *      description HTML rather than as a structured media element.
+ *
  * Google-News-specific title cleanup is done in [ArticleRepository] —
  * this client stays unopinionated.
  */
@@ -57,6 +66,7 @@ object RssClient {
         var link = StringBuilder()
         var pubDate = StringBuilder()
         var source = StringBuilder()
+        var descriptionHtml = StringBuilder()
         var image: String? = null
 
         var event = parser.eventType
@@ -71,6 +81,7 @@ object RssClient {
                             link = StringBuilder()
                             pubDate = StringBuilder()
                             source = StringBuilder()
+                            descriptionHtml = StringBuilder()
                             image = null
                         }
                         inItem -> when (tag) {
@@ -102,7 +113,7 @@ object RssClient {
                         }
                     }
                 }
-                XmlPullParser.TEXT -> {
+                XmlPullParser.TEXT, XmlPullParser.CDSECT -> {
                     if (inItem) {
                         val text = parser.text ?: ""
                         when (tag) {
@@ -110,7 +121,12 @@ object RssClient {
                             "link" -> link.append(text)
                             "pubDate", "published", "updated" -> pubDate.append(text)
                             "source", "dc:creator" -> source.append(text)
-                            // Atom: <link href="..."/> already handled via attribute
+                            // Capture the raw HTML — used as a fallback image
+                            // source. `content:encoded` is the richer field
+                            // (full post HTML); `description` is the summary
+                            // and often also contains the hero image.
+                            "description", "content:encoded", "summary", "content" ->
+                                descriptionHtml.append(text)
                         }
                     }
                 }
@@ -118,6 +134,12 @@ object RssClient {
                     if (parser.name == "item" || parser.name == "entry") {
                         val t = HtmlText.decode(title.toString())
                         val l = link.toString().trim()
+                        // Fallback image: first <img src="..."> inside the
+                        // description / content HTML. Many lab blog RSS feeds
+                        // (Anthropic, OpenAI, DeepMind, Google Research) only
+                        // ship the hero this way.
+                        val finalImage = image?.takeIf { it.isNotBlank() }
+                            ?: extractFirstImg(descriptionHtml.toString(), baseUrl = l)
                         if (t.isNotEmpty() && l.isNotEmpty()) {
                             out += RssItem(
                                 title = t,
@@ -125,7 +147,7 @@ object RssClient {
                                 pubDateMillis = parseDate(pubDate.toString()),
                                 source = HtmlText.decode(source.toString())
                                     .takeIf { it.isNotEmpty() },
-                                imageUrl = image?.takeIf { it.isNotBlank() },
+                                imageUrl = finalImage,
                             )
                         }
                         inItem = false
@@ -157,4 +179,44 @@ object RssClient {
         }
         return null
     }
+
+    /**
+     * Find the first plausible hero image in the description / content
+     * HTML. Skips obvious noise (1×1 tracking pixels, base-64 inline
+     * blobs, vector spacers) and resolves protocol-relative or
+     * relative URLs against the article's own link.
+     */
+    private fun extractFirstImg(html: String, baseUrl: String): String? {
+        if (html.isBlank()) return null
+        IMG_SRC_PATTERN.findAll(html).forEach { m ->
+            val raw = m.groupValues[1].trim()
+            val resolved = resolveImageUrl(raw, baseUrl) ?: return@forEach
+            if (looksLikeRealImage(resolved)) return resolved
+        }
+        return null
+    }
+
+    private fun resolveImageUrl(raw: String, baseUrl: String): String? {
+        if (raw.isBlank() || raw.startsWith("data:")) return null
+        if (raw.startsWith("//")) return "https:$raw"
+        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
+        return runCatching { java.net.URI(baseUrl).resolve(raw).toString() }.getOrNull()
+    }
+
+    /** Reject obvious tracking pixels / spacers / vector icons. */
+    private fun looksLikeRealImage(url: String): Boolean {
+        val lower = url.lowercase()
+        if (lower.endsWith(".svg") || lower.endsWith(".gif")) return false
+        if (lower.contains("/pixel.") || lower.contains("tracking") ||
+            lower.contains("/spacer") || lower.contains("blank.")) return false
+        if (lower.contains("1x1")) return false
+        return true
+    }
+
+    /** Matches `<img ... src="..."/>` — quote style and attribute order
+     *  agnostic. Case-insensitive. */
+    private val IMG_SRC_PATTERN = Regex(
+        """<img\s[^>]*?\bsrc\s*=\s*["']([^"']+)["']""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+    )
 }

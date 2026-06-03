@@ -52,10 +52,15 @@ object OksurfClient {
                 if (!resp.isSuccessful) return emptyList()
                 val raw = resp.body?.string().orEmpty()
                 if (raw.isBlank()) return emptyList()
-                parse(raw)
+                parse(raw).take(MAX_ITEMS)
             }
         }.getOrDefault(emptyList())
     }
+
+    /** Bounds OKSURF's contribution. The endpoint returns a map of
+     *  categories that can balloon to 80+ items; we only want the
+     *  top slice anyway since downstream dedup collapses heavily. */
+    private const val MAX_ITEMS = 25
 
     private fun parse(raw: String): List<OksurfItem> {
         val trimmed = raw.trim()

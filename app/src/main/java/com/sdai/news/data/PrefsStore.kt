@@ -3,10 +3,12 @@ package com.sdai.news.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.sdai.news.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "sdai_prefs")
@@ -47,5 +49,27 @@ class PrefsStore(private val context: Context) {
 
     suspend fun setDisclaimerAccepted(accepted: Boolean) {
         context.dataStore.edit { it[disclaimerKey] = accepted }
+    }
+
+    // ── Refresh timing — used by ArticleRepository to avoid re-fetching
+    //    a fresh cache and to throttle per-source fetches. Stored as
+    //    epoch millis. Zero = never fetched.
+
+    suspend fun lastFullRefreshMs(): Long =
+        context.dataStore.data.first()[KEY_LAST_FULL_REFRESH] ?: 0L
+
+    suspend fun setLastFullRefreshMs(ms: Long) {
+        context.dataStore.edit { it[KEY_LAST_FULL_REFRESH] = ms }
+    }
+
+    suspend fun lastFetchedMs(layer: String): Long =
+        context.dataStore.data.first()[longPreferencesKey("fetched_$layer")] ?: 0L
+
+    suspend fun setLastFetchedMs(layer: String, ms: Long) {
+        context.dataStore.edit { it[longPreferencesKey("fetched_$layer")] = ms }
+    }
+
+    companion object {
+        private val KEY_LAST_FULL_REFRESH = longPreferencesKey("last_full_refresh_ms")
     }
 }
