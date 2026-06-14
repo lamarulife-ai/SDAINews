@@ -35,6 +35,7 @@ data class ArticleEntity(
      * SQL WHERE rather than computing it per row in Kotlin.
      */
     val tier: String? = null,
+    val section: String? = null,
 ) {
     fun toArticle() = Article(
         id = id,

@@ -106,7 +106,37 @@ No location, camera, contacts, calendar, microphone, or storage access is reques
 
 ## Version
 
-**v1.1.0 (version code 6)** — Quality pass + content expansion.
+**v1.2.0 (version code 8)** — GPS location replaces pincode setup.
+
+### v1.2.0 — GPS location replaces pincode setup
+
+**Breaking change (setup flow)**
+
+- **Removed pincode-based setup.** The old `PincodeService` relied on India-only
+  postal API (`api.postalpincode.in`) and didn't work outside India. Users in
+  other countries had no way to complete onboarding.
+- **New one-time GPS location flow.** Setup now requests `ACCESS_FINE_LOCATION`
+  + `ACCESS_COARSE_LOCATION` at runtime, gets a fresh GPS fix via
+  `FusedLocationProviderClient`, reverse-geocodes it to city/region/country
+  via Android `Geocoder`, and shows the resolved location for confirmation.
+  If GPS is off or permission is denied, the user can enter city/region/country
+  manually.
+- **Settings → Location.** A new "Location" section shows the current city
+  and offers "Re-detect Location" (GPS re-fetch) or manual entry. This replaces
+  the previous one-time pincode that was unchangeable after setup.
+- **DataStore keys migrated.** Old `pincode_*` keys replaced with `location_*`
+  keys: lat/lon/city/region/country/label. The `PincodeService.kt` file has
+  been removed.
+
+**Dependencies**
+- Added `com.google.android.gms:play-services-location:21.3.0`.
+
+**Permissions**
+- Added `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` to manifest.
+  Only requested once during setup; the app never polls location in the
+  background.
+
+**Version bump** — 1.1.1 → 1.2.0, versionCode 7 → 8.
 
 ### v1.1.0 — release notes
 

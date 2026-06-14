@@ -25,17 +25,35 @@ interface ArticleDao {
     // secondary. The 24h cache sweep keeps everything fresh enough
     // that weight-first never pins old content.
     @Query(
-        "SELECT * FROM articles " +
+        "SELECT * FROM articles WHERE section IS NULL OR section = '' " +
             "ORDER BY weight DESC, publishedAtMillis DESC LIMIT :limit"
     )
     fun observeRecent(limit: Int = 200): Flow<List<ArticleEntity>>
 
     /** Same as [observeRecent], filtered to a single tier chip. */
     @Query(
-        "SELECT * FROM articles WHERE tier = :tier " +
+        "SELECT * FROM articles WHERE tier = :tier AND (section IS NULL OR section = '') " +
             "ORDER BY weight DESC, publishedAtMillis DESC LIMIT :limit"
     )
     fun observeByTier(tier: String, limit: Int = 200): Flow<List<ArticleEntity>>
+
+    @Query(
+        "SELECT * FROM articles WHERE section = :section " +
+            "ORDER BY publishedAtMillis DESC LIMIT :limit"
+    )
+    fun observeBySection(section: String, limit: Int = 200): Flow<List<ArticleEntity>>
+
+    @Query("SELECT * FROM articles WHERE section = :section ORDER BY publishedAtMillis DESC LIMIT :limit")
+    suspend fun recentBySection(section: String, limit: Int = 200): List<ArticleEntity>
+
+    @Query("SELECT * FROM articles ORDER BY publishedAtMillis DESC LIMIT :limit")
+    fun observeAll(limit: Int = 500): Flow<List<ArticleEntity>>
+
+    @Query("SELECT * FROM articles WHERE category = :category ORDER BY publishedAtMillis DESC LIMIT :limit")
+    fun observeByCategory(category: String, limit: Int = 200): Flow<List<ArticleEntity>>
+
+    @Query("SELECT * FROM articles WHERE section = :section AND category = :category ORDER BY publishedAtMillis DESC LIMIT :limit")
+    fun observeBySectionAndCategory(section: String, category: String, limit: Int = 200): Flow<List<ArticleEntity>>
 
     @Query(
         "SELECT * FROM articles " +

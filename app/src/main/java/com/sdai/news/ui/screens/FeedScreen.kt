@@ -67,6 +67,7 @@ fun FeedScreen(
     onOpenArticle: (Article) -> Unit,
     onOpenBookmarks: () -> Unit,
     onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val vm: FeedViewModel = viewModel()
     val status by vm.status.collectAsState()
@@ -78,7 +79,7 @@ fun FeedScreen(
     val wellnessEnabled by SDAINewsApp.get().prefs.wellnessEnabled
         .collectAsState(initial = true)
 
-    Box(Modifier.fillMaxSize().background(Sdai.background)) {
+    Box(modifier.fillMaxSize().background(Sdai.background)) {
         when (val s = status) {
             FeedUiState.Loading -> LoadingState()
             is FeedUiState.Error -> ErrorState(message = s.message, onRetry = { vm.refresh() })

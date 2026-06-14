@@ -10,11 +10,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [ArticleEntity::class, BookmarkEntity::class],
     // v2: added `weight` and `tier` columns on articles for per-source
-    // quality scoring + tier-filter chips. Destructive migration is
-    // acceptable — the articles table is regenerated every refresh and
-    // capped at 24 h; bookmarks survive via the OnConflictStrategy on
-    // their own table since their schema hasn't changed.
-    version = 2,
+    // quality scoring + tier-filter chips.
+    // v3: added `section` column for general news sections
+    // (global/national/regional). Destructive migration is acceptable —
+    // the articles table is regenerated every refresh and capped at 24 h;
+    // bookmarks survive via the OnConflictStrategy on their own table
+    // since their schema hasn't changed.
+    version = 3,
     exportSchema = false,
 )
 abstract class SDAIDatabase : RoomDatabase() {
@@ -36,7 +38,7 @@ abstract class SDAIDatabase : RoomDatabase() {
                 // falls back to a destructive rebuild — acceptable
                 // because the articles table is recomputed on every
                 // refresh and capped at 24h anyway.
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
@@ -51,6 +53,16 @@ abstract class SDAIDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE articles ADD COLUMN weight INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE articles ADD COLUMN tier TEXT")
+            }
+        }
+
+        /**
+         * v2→v3: add `section` column for general news sections.
+         * Existing AI articles get NULL (treated as AI section).
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE articles ADD COLUMN section TEXT")
             }
         }
     }

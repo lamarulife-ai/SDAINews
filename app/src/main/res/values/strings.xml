@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">SD AI News</string>
-    <string name="app_tagline">Dedicated AI News Feed</string>
+    <string name="app_name">SD News</string>
+    <string name="app_tagline">AI News + Global, National &amp; Regional News</string>
 
     <!-- Splash -->
-    <string name="splash_title">SD AI News</string>
-    <string name="splash_subtitle">Dedicated AI News Feed</string>
+    <string name="splash_title">SD News</string>
+    <string name="splash_subtitle">AI News + Beyond</string>
 
     <!-- Feed -->
     <string name="feed_loading">Fetching today\'s AI news…</string>
@@ -42,7 +42,7 @@
     <string name="contact_email_label">Email</string>
     <string name="contact_email_value">lamarulife@gmail.com</string>
     <string name="contact_email_action">Tap to send email</string>
-    <string name="contact_email_subject">SD AI News — Contact</string>
+    <string name="contact_email_subject">SD News — Contact</string>
     <string name="contact_website_label">Project &amp; source code</string>
     <string name="contact_website_value">github.com/lamarulife-ai</string>
     <string name="contact_website_url">https://github.com/lamarulife-ai</string>
@@ -50,32 +50,32 @@
     <string name="contact_privacy_url">https://lamarulife-ai.github.io/SDAINews/SDAI_Privacy</string>
     <string name="contact_publisher_page_label">Publisher info</string>
     <string name="contact_publisher_page_url">https://lamarulife-ai.github.io/SDAINews/SDAI_Contact</string>
-    <string name="contact_aggregator_notice">SD AI News is an aggregator. We do not produce original journalism. Each article in the feed links back to its original publisher. To request removal of a feed, email us.</string>
+    <string name="contact_aggregator_notice">SD News is an aggregator. We do not produce original journalism. Each article in the feed links back to its original publisher. To request removal of a feed, email us.</string>
 
     <!-- Editorial disclaimer — first-launch gate + Settings link -->
     <string name="disclaimer_title">Disclaimer</string>
-    <string name="disclaimer_intro">Please read carefully before using SD AI News.</string>
-    <string name="disclaimer_body">SD AI News is a news aggregator. The headlines and summaries shown here are sourced from publicly available feeds and are provided for general information only.\n\nWe do not produce, edit, fact-check, endorse, or verify the content of any article. Views expressed in the articles are those of the original authors and publishers, not of SD AI News or its developer.\n\nReaders are strongly encouraged to verify any news independently — by consulting the original publisher and other authoritative sources — before relying on it for any purpose, including financial, medical, legal, or other consequential decisions. SD AI News accepts no liability for inaccuracies, omissions, or any outcome arising from use of the information presented.</string>
+    <string name="disclaimer_intro">Please read carefully before using SD News.</string>
+    <string name="disclaimer_body">SD News is a news aggregator. The headlines and summaries shown here are sourced from publicly available feeds and are provided for general information only.\n\nWe do not produce, edit, fact-check, endorse, or verify the content of any article. Views expressed in the articles are those of the original authors and publishers, not of SD News or its developer.\n\nReaders are strongly encouraged to verify any news independently — by consulting the original publisher and other authoritative sources — before relying on it for any purpose, including financial, medical, legal, or other consequential decisions. SD News accepts no liability for inaccuracies, omissions, or any outcome arising from use of the information presented.</string>
     <string name="disclaimer_accept">I understand &amp; accept</string>
     <string name="disclaimer_accepted_already">You accepted this disclaimer.</string>
     <string name="disclaimer_close">Close</string>
     <string name="settings_disclaimer">Disclaimer</string>
     <string name="settings_terms">Terms of Use</string>
     <string name="settings_privacy">Privacy policy</string>
-    <string name="settings_github">SD AI News on GitHub</string>
+    <string name="settings_github">SD News on GitHub</string>
     <string name="settings_legal_section">Legal &amp; About</string>
     <string name="settings_reading_section">Reading</string>
     <string name="contact_terms_url">https://lamarulife-ai.github.io/SDAINews/SDAI_Terms</string>
 
     <!-- Per-card report-content email -->
-    <string name="report_email_subject">SD AI News — Content report</string>
+    <string name="report_email_subject">SD News — Content report</string>
     <string name="report_email_body">Please describe the issue with the article below (e.g. inaccurate, offensive, copyright concern). The article URL and source are included for reference.\n\n--- Article details ---\nTitle: %1$s\nSource: %2$s\nURL: %3$s\n\n--- Your report ---\n</string>
     <string name="contact_response_time">We aim to reply within 7 days.</string>
 
     <!-- Notifications section -->
     <string name="settings_notifications">Notifications</string>
     <string name="settings_battery">Reliable daily push</string>
-    <string name="settings_battery_sub">If your phone delays or skips the morning digest, exclude SD AI News from battery optimization.</string>
+    <string name="settings_battery_sub">If your phone delays or skips the morning digest, exclude SD News from battery optimization.</string>
     <string name="settings_battery_action">Open battery settings</string>
 
     <!-- Widget -->

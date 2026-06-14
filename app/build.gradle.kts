@@ -26,8 +26,8 @@ android {
         applicationId = "com.sdai.news"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.1.0"
+        versionCode = 9
+        versionName = "1.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -131,15 +131,18 @@ dependencies {
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
 
     // Room — caches the latest article batch + persists bookmarks offline
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.8.4")
+    implementation("androidx.room:room-ktx:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
 
     // DataStore for user prefs (theme, wellness toggle)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Location — GPS for setup + manual location detection
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
     // Daily news push — WorkManager runs the fetch, posts a notification
     implementation("androidx.work:work-runtime-ktx:2.9.1")

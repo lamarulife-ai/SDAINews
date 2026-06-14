@@ -10,31 +10,24 @@ import com.sdai.news.SDAINewsApp
 import com.sdai.news.ui.screens.BookmarksScreen
 import com.sdai.news.ui.screens.ContactScreen
 import com.sdai.news.ui.screens.DisclaimerScreen
-import com.sdai.news.ui.screens.FeedScreen
+import com.sdai.news.ui.screens.LocationPickerScreen
+import com.sdai.news.ui.screens.MainScreen
 import com.sdai.news.ui.screens.SettingsScreen
+import com.sdai.news.ui.screens.SetupScreen
 import com.sdai.news.ui.screens.SplashScreen
 import com.sdai.news.util.ArticleViewer
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/**
- * Single-graph nav.
- *
- * First-launch gate: Splash → checks `prefs.disclaimerAccepted`. If
- * unset, the user is routed to [DisclaimerScreen] and **no news data
- * is shown anywhere** until they tap "I understand & accept". Only
- * then do we navigate to [FeedScreen].
- *
- * Article reading happens *outside* the nav graph via Chrome Custom
- * Tabs (see [ArticleViewer]).
- */
 object Routes {
     const val SPLASH = "splash"
-    const val FEED = "feed"
+    const val DISCLAIMER = "disclaimer"
+    const val SETUP = "setup"
+    const val MAIN = "main"
     const val SETTINGS = "settings"
     const val BOOKMARKS = "bookmarks"
     const val CONTACT = "contact"
-    const val DISCLAIMER = "disclaimer"
+    const val LOCATION_PICKER = "location_picker"
 }
 
 @Composable
@@ -48,7 +41,12 @@ fun NavGraph(navController: NavHostController) {
                 scope.launch {
                     val prefs = SDAINewsApp.get().prefs
                     val accepted = prefs.disclaimerAccepted.first()
-                    val next = if (accepted) Routes.FEED else Routes.DISCLAIMER
+                    val setupDone = prefs.setupCompleted.first()
+                    val next = when {
+                        !accepted -> Routes.DISCLAIMER
+                        !setupDone -> Routes.SETUP
+                        else -> Routes.MAIN
+                    }
                     navController.navigate(next) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
@@ -58,18 +56,28 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.DISCLAIMER) {
             DisclaimerScreen(
                 onAccepted = {
-                    // Flag is already persisted by the screen. Replace
-                    // the disclaimer in the back stack with FEED so the
-                    // user can't navigate back to it inadvertently.
-                    navController.navigate(Routes.FEED) {
-                        popUpTo(Routes.DISCLAIMER) { inclusive = true }
+                    scope.launch {
+                        val setupDone = SDAINewsApp.get().prefs.setupCompleted.first()
+                        val next = if (setupDone) Routes.MAIN else Routes.SETUP
+                        navController.navigate(next) {
+                            popUpTo(Routes.DISCLAIMER) { inclusive = true }
+                        }
                     }
                 },
                 onClose = { navController.popBackStack() },
             )
         }
-        composable(Routes.FEED) {
-            FeedScreen(
+        composable(Routes.SETUP) {
+            SetupScreen(
+                onComplete = {
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.SETUP) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Routes.MAIN) {
+            MainScreen(
                 onOpenArticle = { article -> ArticleViewer.open(context, article.url) },
                 onOpenBookmarks = { navController.navigate(Routes.BOOKMARKS) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
@@ -81,7 +89,11 @@ fun NavGraph(navController: NavHostController) {
                 onOpenBookmarks = { navController.navigate(Routes.BOOKMARKS) },
                 onOpenContact = { navController.navigate(Routes.CONTACT) },
                 onOpenDisclaimer = { navController.navigate(Routes.DISCLAIMER) },
+                onOpenLocationPicker = { navController.navigate(Routes.LOCATION_PICKER) },
             )
+        }
+        composable(Routes.LOCATION_PICKER) {
+            LocationPickerScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.CONTACT) {
             ContactScreen(onBack = { navController.popBackStack() })

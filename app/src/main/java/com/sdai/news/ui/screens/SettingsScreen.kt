@@ -49,10 +49,12 @@ fun SettingsScreen(
     onOpenBookmarks: () -> Unit,
     onOpenContact: () -> Unit,
     onOpenDisclaimer: () -> Unit,
+    onOpenLocationPicker: () -> Unit,
 ) {
     val prefs = SDAINewsApp.get().prefs
     val themeMode by prefs.themeMode.collectAsState(initial = ThemeMode.AMOLED)
     val wellness by prefs.wellnessEnabled.collectAsState(initial = true)
+    val locationLabel by prefs.locationLabel.collectAsState(initial = "")
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
@@ -75,6 +77,16 @@ fun SettingsScreen(
             )
         }
         Spacer(Modifier.height(16.dp))
+
+        // ── Location ────────────────────────────────────────────
+        SectionLabel(text = "Location")
+        Spacer(Modifier.height(8.dp))
+        NavRow(
+            label = locationLabel.ifEmpty { "Set your location" },
+            subtitle = "Change location for local news",
+            onClick = onOpenLocationPicker,
+        )
+        Spacer(Modifier.height(24.dp))
 
         SectionLabel(text = stringResource(R.string.settings_theme))
         Spacer(Modifier.height(8.dp))
@@ -299,7 +311,7 @@ private fun ThemeOption(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun NavRow(label: String, onClick: () -> Unit) {
+private fun NavRow(label: String, subtitle: String? = null, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -307,11 +319,16 @@ private fun NavRow(label: String, onClick: () -> Unit) {
             .background(Sdai.cardInner)
             .border(1.dp, Sdai.border, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 16.dp),
+            .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, style = MaterialTheme.typography.titleMedium, color = Sdai.ink)
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.titleMedium, color = Sdai.ink)
+            if (subtitle != null) {
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Sdai.muted)
+            }
+        }
         Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Sdai.muted)
     }
 }

@@ -2,6 +2,7 @@ package com.sdai.news.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -13,17 +14,19 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "sdai_prefs")
 
-/**
- * Thin wrapper around DataStore. Holds the handful of user-tunable
- * preferences — theme mode and the eye-break reminder toggle.
- *
- * Bookmarks and the article cache live in Room, not here.
- */
 class PrefsStore(private val context: Context) {
 
     private val themeKey = stringPreferencesKey("theme_mode")
     private val wellnessKey = booleanPreferencesKey("wellness_enabled")
     private val disclaimerKey = booleanPreferencesKey("disclaimer_accepted")
+    private val setupDoneKey = booleanPreferencesKey("setup_completed")
+
+    private val locLatKey = doublePreferencesKey("location_lat")
+    private val locLonKey = doublePreferencesKey("location_lon")
+    private val locCityKey = stringPreferencesKey("location_city")
+    private val locRegionKey = stringPreferencesKey("location_region")
+    private val locCountryKey = stringPreferencesKey("location_country")
+    private val locLabelKey = stringPreferencesKey("location_label")
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         runCatching { ThemeMode.valueOf(prefs[themeKey] ?: ThemeMode.AMOLED.name) }
@@ -34,10 +37,39 @@ class PrefsStore(private val context: Context) {
         prefs[wellnessKey] ?: true
     }
 
-    // Defaults to false so first launch always shows the disclaimer.
     val disclaimerAccepted: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[disclaimerKey] ?: false
     }
+
+    val setupCompleted: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[setupDoneKey] ?: false
+    }
+
+    val locationCity: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[locCityKey] ?: ""
+    }
+
+    val locationRegion: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[locRegionKey] ?: ""
+    }
+
+    val locationCountry: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[locCountryKey] ?: ""
+    }
+
+    val locationLabel: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[locLabelKey] ?: ""
+    }
+
+    val locationHasFix: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[locLatKey] != null && prefs[locLonKey] != null
+    }
+
+    suspend fun locationLat(): Double =
+        context.dataStore.data.first()[locLatKey] ?: 0.0
+
+    suspend fun locationLon(): Double =
+        context.dataStore.data.first()[locLonKey] ?: 0.0
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[themeKey] = mode.name }
@@ -51,9 +83,32 @@ class PrefsStore(private val context: Context) {
         context.dataStore.edit { it[disclaimerKey] = accepted }
     }
 
-    // ── Refresh timing — used by ArticleRepository to avoid re-fetching
-    //    a fresh cache and to throttle per-source fetches. Stored as
-    //    epoch millis. Zero = never fetched.
+    suspend fun setSetupCompleted(completed: Boolean) {
+        context.dataStore.edit { it[setupDoneKey] = completed }
+    }
+
+    suspend fun setLocation(loc: ResolvedLocation) {
+        context.dataStore.edit {
+            it[locLatKey] = loc.latitude
+            it[locLonKey] = loc.longitude
+            it[locCityKey] = loc.city
+            it[locRegionKey] = loc.region
+            it[locCountryKey] = loc.country
+            it[locLabelKey] = loc.label
+        }
+    }
+
+    suspend fun setManualLocation(city: String, region: String, country: String) {
+        context.dataStore.edit {
+            it[locCityKey] = city
+            it[locRegionKey] = region
+            it[locCountryKey] = country
+            it[locLabelKey] = listOfNotNull(
+                city.takeIf { it.isNotBlank() },
+                region.takeIf { it.isNotBlank() },
+            ).joinToString(", ").ifEmpty { "$city, $region" }
+        }
+    }
 
     suspend fun lastFullRefreshMs(): Long =
         context.dataStore.data.first()[KEY_LAST_FULL_REFRESH] ?: 0L
