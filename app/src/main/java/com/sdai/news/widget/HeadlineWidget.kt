@@ -50,12 +50,12 @@ class HeadlineWidget : GlanceAppWidget() {
         val headline = when {
             !accepted -> "Tap to accept the disclaimer and start reading"
             top != null -> top.title
-            else -> "Open SD AI News for the latest"
+            else -> "Open Awarely for the latest"
         }
         val source = when {
-            !accepted -> "SD AI News"
+            !accepted -> "Awarely"
             top != null -> top.source
-            else -> "SD AI News"
+            else -> "Awarely"
         }
 
         // Explicit Intent — older Glance variants don't have the

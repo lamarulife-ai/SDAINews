@@ -50,7 +50,7 @@ object ShareCardRenderer {
     ): Uri? = withContext(Dispatchers.IO) {
         runCatching {
             val hero = imageUrl?.let { loadBitmap(context, it) }
-                ?: BitmapFactory.decodeResource(context.resources, R.drawable.sdai_logo)
+                ?: BitmapFactory.decodeResource(context.resources, R.drawable.awarely_logo)
 
             val bitmap = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -166,8 +166,8 @@ object ShareCardRenderer {
             textSize = 30f
         }
         val footerY = H - 70f
-        canvas.drawText("SD AI News", padX, footerY, footerPaint)
-        canvas.drawText("Smart News. Real Insight.", padX, footerY + 38f, tagPaint)
+        canvas.drawText("Awarely", padX, footerY, footerPaint)
+        canvas.drawText("Scan. Learn. Decide.", padX, footerY + 38f, tagPaint)
     }
 
     // suppress unused — kept in case we want a circle clip on logos

@@ -48,7 +48,7 @@ fun SplashScreen(onContinue: () -> Unit) {
                 .padding(horizontal = 32.dp),
         ) {
             Image(
-                painter = painterResource(R.drawable.sdai_logo),
+                painter = painterResource(R.drawable.awarely_logo),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth(fraction = 0.75f),

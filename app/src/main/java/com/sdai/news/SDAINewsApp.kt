@@ -32,6 +32,9 @@ class SDAINewsApp : Application(), ImageLoaderFactory {
         HttpClient.init(this)
         DailyDigestWorker.schedule(this)
         com.sdai.news.notify.ArxivRefreshWorker.schedule(this)
+        com.sdai.news.notify.EveningDigestWorker.schedule(this)
+        com.sdai.news.analytics.AnalyticsManager.get(this).startSession()
+        com.sdai.news.analytics.AnalyticsManager.get(this).pruneOldData()
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

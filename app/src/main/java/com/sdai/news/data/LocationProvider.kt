@@ -24,6 +24,7 @@ data class ResolvedLocation(
     val region: String,
     val country: String,
     val label: String,
+    val countryCode: String = "",
 )
 
 sealed interface LocationResult {
@@ -82,6 +83,43 @@ class LocationProvider(private val context: Context) {
             cont.invokeOnCancellation { cts.cancel() }
         }
 
+    /** Resolve a typed place name (e.g. "Vizag") to a full location with state +
+     *  country code, so manually-entered cities get proper Local sources and a
+     *  resolved regional language. Returns null if it can't be resolved. */
+    suspend fun forwardGeocode(query: String): ResolvedLocation? {
+        if (query.isBlank() || !Geocoder.isPresent()) return null
+        val geocoder = Geocoder(context, Locale.ENGLISH)
+        val addresses: List<Address>? = withTimeoutOrNull(6_000L) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                suspendCancellableCoroutine { cont ->
+                    geocoder.getFromLocationName(query, 1) { addr -> cont.resume(addr) }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                runCatching { geocoder.getFromLocationName(query, 1) }.getOrDefault(null)
+            }
+        }
+        val a = addresses?.firstOrNull() ?: return null
+        val city = listOfNotNull(
+            a.locality?.takeIf { it.isNotBlank() },
+            a.subAdminArea?.takeIf { it.isNotBlank() },
+            a.subLocality?.takeIf { it.isNotBlank() },
+        ).firstOrNull().orEmpty().ifBlank { query.trim() }
+        val region = a.adminArea?.takeIf { it.isNotBlank() }.orEmpty()
+        val country = a.countryName?.takeIf { it.isNotBlank() }.orEmpty()
+        val countryCode = a.countryCode?.takeIf { it.isNotBlank() }.orEmpty()
+        return ResolvedLocation(
+            latitude = a.latitude,
+            longitude = a.longitude,
+            city = city,
+            region = region,
+            country = country,
+            label = listOfNotNull(city.takeIf { it.isNotBlank() }, region.takeIf { it.isNotBlank() })
+                .joinToString(", ").ifBlank { query.trim() },
+            countryCode = countryCode,
+        )
+    }
+
     private suspend fun reverseGeocode(lat: Double, lon: Double): ResolvedLocation {
         val fallback = ResolvedLocation(
             latitude = lat,
@@ -119,6 +157,7 @@ class LocationProvider(private val context: Context) {
 
         val region = a.adminArea?.takeIf { it.isNotBlank() }.orEmpty()
         val country = a.countryName?.takeIf { it.isNotBlank() }.orEmpty()
+        val countryCode = a.countryCode?.takeIf { it.isNotBlank() }.orEmpty()
 
         val labelParts = listOfNotNull(
             city.takeIf { it.isNotBlank() },
@@ -134,6 +173,7 @@ class LocationProvider(private val context: Context) {
             region = region,
             country = country,
             label = label,
+            countryCode = countryCode,
         )
     }
 }

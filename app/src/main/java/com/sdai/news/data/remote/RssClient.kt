@@ -43,7 +43,7 @@ object RssClient {
         return runCatching {
             val req = Request.Builder()
                 .url(feedUrl)
-                .header("User-Agent", "Mozilla/5.0 (Android) SDAINews/1.0")
+                .header("User-Agent", "Mozilla/5.0 (Android) Awarely/1.0")
                 .build()
             http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return emptyList()
@@ -99,8 +99,16 @@ object RssClient {
                                     }
                                 }
                             }
-                            // <media:content url="..."> / <media:thumbnail url="...">
-                            "media:content", "media:thumbnail" -> if (image == null) {
+                            // <media:content url="..."> — only if it's actually an
+                            // image. YouTube feeds put a Flash <media:content>
+                            // BEFORE <media:thumbnail>, so guard on the type.
+                            "media:content" -> if (image == null) {
+                                val type = parser.getAttributeValue(null, "type")
+                                if (type == null || type.startsWith("image", ignoreCase = true)) {
+                                    image = parser.getAttributeValue(null, "url")
+                                }
+                            }
+                            "media:thumbnail" -> if (image == null) {
                                 image = parser.getAttributeValue(null, "url")
                             }
                             // <enclosure url="..." type="image/jpeg">

@@ -36,6 +36,11 @@ data class ArticleEntity(
      */
     val tier: String? = null,
     val section: String? = null,
+    /** True for YouTube video items. Tracked separately from [category] so a
+     *  video can also carry a topic (tech/politics/…) and appear under it. */
+    val isVideo: Boolean = false,
+    /** Content language — "en" or a regional ISO code (e.g. "te"). */
+    val lang: String = "en",
 ) {
     fun toArticle() = Article(
         id = id,
@@ -49,6 +54,8 @@ data class ArticleEntity(
         publishedAtMillis = publishedAtMillis,
         weight = weight,
         tier = tier,
+        isVideo = isVideo,
+        lang = lang,
     )
 
     companion object {
@@ -65,6 +72,8 @@ data class ArticleEntity(
             fetchedAtMillis = fetchedAtMillis,
             weight = a.weight,
             tier = a.tier,
+            isVideo = a.isVideo,
+            lang = a.lang,
         )
     }
 }

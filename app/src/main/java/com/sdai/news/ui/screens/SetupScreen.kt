@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +63,26 @@ private enum class SetupStep {
     MANUAL_ENTRY,
     PERMISSION_DENIED,
     LOCATION_OFF,
+    INTERESTS,
 }
+
+// Interest → affinity category code, used to seed the personalization engine.
+private val INTEREST_OPTIONS = listOf(
+    "❤️ Health & Nutrition" to "health",
+    "🛡️ Product Safety" to "safety",
+    "🍼 Kids Health" to "kids",
+    "🔬 Research & Science" to "science",
+    "🌿 Healthy Living" to "health",
+    "🌍 Environment" to "climate",
+    "💻 Technology" to "tech",
+    "💼 Business" to "business",
+    "🏏 Sports" to "sports",
+    "🏛️ Politics" to "politics",
+    "📍 Local News" to "local",
+    "🌸 Anime" to "anime",
+    "🎮 Gaming" to "gaming",
+    "✨ Inspiration" to "inspiration",
+)
 
 @Composable
 fun SetupScreen(onComplete: () -> Unit) {
@@ -125,9 +145,9 @@ fun SetupScreen(onComplete: () -> Unit) {
                         location = loc,
                         onConfirm = {
                             scope.launch {
-                                prefs.setLocation(loc)
+                                prefs.saveLocationWithLanguage(loc)
                                 prefs.setSetupCompleted(true)
-                                onComplete()
+                                step = SetupStep.INTERESTS
                             }
                         },
                         onRetry = {
@@ -162,11 +182,28 @@ fun SetupScreen(onComplete: () -> Unit) {
                                     manualRegion.trim().takeIf { it.isNotBlank() },
                                 ).joinToString(", "),
                             )
-                            prefs.setLocation(loc)
+                            prefs.saveLocationWithLanguage(loc)
                             prefs.setSetupCompleted(true)
+                            step = SetupStep.INTERESTS
+                        }
+                    },
+                )
+
+                SetupStep.INTERESTS -> InterestsContent(
+                    onContinue = { picked ->
+                        scope.launch {
+                            // Persist the picks as Preferred Topics (shown in
+                            // Settings + boosted by the ranker) AND seed the
+                            // affinity engine so the feed leans toward them from
+                            // day one.
+                            if (picked.isNotEmpty()) {
+                                prefs.setPreferredTopics(picked.toSet())
+                                prefs.addAffinity(picked.map { "cat:$it" }, 30f)
+                            }
                             onComplete()
                         }
                     },
+                    onSkip = onComplete,
                 )
 
                 SetupStep.PERMISSION_DENIED -> PermissionDeniedContent(
@@ -192,13 +229,98 @@ fun SetupScreen(onComplete: () -> Unit) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun InterestsContent(
+    onContinue: (List<String>) -> Unit,
+    onSkip: () -> Unit,
+) {
+    val selected = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    val minRequired = 3
+
+    Text(
+        "Choose Your Interests",
+        style = MaterialTheme.typography.headlineMedium,
+        color = Sdai.ink,
+        fontWeight = FontWeight.Bold,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Scan. Learn. Decide. · Aware of What You Consume",
+        style = MaterialTheme.typography.labelLarge,
+        color = Sdai.primary,
+        fontWeight = FontWeight.Bold,
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Choose $minRequired or more topics you like — your feed will be tuned just for you.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = Sdai.muted,
+        modifier = Modifier.padding(horizontal = 8.dp),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+    )
+    Spacer(Modifier.height(6.dp))
+    Text(
+        "${selected.size} of $minRequired selected",
+        style = MaterialTheme.typography.labelMedium,
+        color = if (selected.size >= minRequired) Sdai.success else Sdai.muted,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Spacer(Modifier.height(14.dp))
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        INTEREST_OPTIONS.forEach { (label, code) ->
+            val isOn = code in selected
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isOn) Sdai.primary else Sdai.cardInner)
+                    .border(1.dp, if (isOn) Sdai.primary else Sdai.border, RoundedCornerShape(50))
+                    .clickable { if (isOn) selected.remove(code) else selected.add(code) }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    label,
+                    color = if (isOn) Sdai.onPrimary else Sdai.ink,
+                    fontWeight = if (isOn) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(28.dp))
+    Button(
+        onClick = { onContinue(selected.toList()) },
+        enabled = selected.size >= minRequired,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Sdai.primary,
+            contentColor = Sdai.onPrimary,
+            disabledContainerColor = Sdai.mutedDeep,
+            disabledContentColor = Sdai.muted,
+        ),
+    ) {
+        Text(
+            if (selected.size >= minRequired) "Start Reading" else "Pick ${minRequired - selected.size} more",
+            fontWeight = FontWeight.Bold,
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+        Text("Skip for now", color = Sdai.muted)
+    }
+}
+
 @Composable
 private fun WelcomeContent(
     onAllowLocation: () -> Unit,
     onEnterManually: () -> Unit,
 ) {
     Text(
-        "Welcome to SD News",
+        "Welcome to Awarely",
         style = MaterialTheme.typography.headlineMedium,
         color = Sdai.ink,
         fontWeight = FontWeight.Bold,

@@ -76,7 +76,7 @@ object WordPressClient {
         val url = "${site.baseUrl}/wp-json/wp/v2/posts?_embed=true&per_page=15"
         val req = Request.Builder()
             .url(url)
-            .header("User-Agent", "Mozilla/5.0 (Android) SDAINewsApp/1.0")
+            .header("User-Agent", "Mozilla/5.0 (Android) Awarely/1.0")
             .header("Accept", "application/json")
             .build()
         return http.newCall(req).execute().use { resp ->

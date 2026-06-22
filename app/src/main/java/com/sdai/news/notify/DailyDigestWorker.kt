@@ -61,7 +61,7 @@ class DailyDigestWorker(
 
             val headline = top.first().title
             val body = top.drop(1).take(2).joinToString(separator = "  ·  ") { it.title }
-                .ifBlank { "Open SD AI News for today's stories." }
+                .ifBlank { "Open Awarely for today's stories." }
 
             postNotification(ctx, headline, body)
             Result.success()

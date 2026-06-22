@@ -45,7 +45,7 @@ object OksurfClient {
         return runCatching {
             val req = Request.Builder()
                 .url(url)
-                .header("User-Agent", "Mozilla/5.0 (Android) SDAINews/1.0")
+                .header("User-Agent", "Mozilla/5.0 (Android) Awarely/1.0")
                 .header("Accept", "application/json")
                 .build()
             http.newCall(req).execute().use { resp ->

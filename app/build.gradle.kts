@@ -5,18 +5,23 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
+    id("com.google.devtools.ksp") version "2.0.21-1.0.25"
 }
 
-// Read upload-key credentials from gitignored keystore.properties.
-// Absence is non-fatal — debug builds and CI runs without secrets still
-// work; only `assembleRelease` / `bundleRelease` requires it.
 val keystoreFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystoreFile.exists()) load(FileInputStream(keystoreFile))
 }
 val hasReleaseKey = keystoreFile.exists()
     && keystoreProps.getProperty("storeFile")?.isNotBlank() == true
+
+// local.properties holds gemini.apiKey (gitignored). Falls back to empty
+// string so builds without the key still compile; scanner shows an error
+// at runtime if the key is blank.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(FileInputStream(f))
+}
 
 android {
     namespace = "com.sdai.news"
@@ -26,11 +31,19 @@ android {
         applicationId = "com.sdai.news"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.2.1"
+        versionCode = 17
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProps.getProperty("gemini.apiKey", "")}\"")
+
+        // Only ship ARM ABIs — drops x86/x86_64 emulator variants (~30 % size reduction)
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+
+        // Strip all language resources except English
+        resourceConfigurations += "en"
+
     }
 
     signingConfigs {
@@ -70,7 +83,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+        // Blanket opt-in for Compose Material3 experimental APIs used in scanner screens.
+        freeCompilerArgs += listOf("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
+    }
 
     buildFeatures {
         compose = true
@@ -131,9 +148,9 @@ dependencies {
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
 
     // Room — caches the latest article batch + persists bookmarks offline
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
 
     // DataStore for user prefs (theme, wellness toggle)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -150,4 +167,15 @@ dependencies {
     // Home-screen widget — Compose-style Glance
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
+
+    // CameraX — Scan to Know live viewfinder
+    val cameraxVersion = "1.4.1"
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ML Kit — unbundled (Play Services) variants download the model on first use instead
+    // of bundling it in the APK, saving ~20 MB. Same API surface as the bundled versions.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 }

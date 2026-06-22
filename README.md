@@ -1,25 +1,39 @@
-# SD AI News
+# SD News
 
-**Smart News. Real Insight.** — a free, open, society-benefit Android app that surfaces today's most important AI news in a swipe-feed format.
+**Smart News. Real Insight.** — a free, ad-free, privacy-first Android news app in a reels-style swipe feed. World news, your country, and your region in your local language, plus video, Good News and Inspiration — tuned to bring positivity.
 
-No accounts. No API keys. No tracking. No ads. No monetisation. Built once to run forever.
+- **Version:** 1.6.0 (versionCode 13)
+- **Package:** `com.sdai.news`
+- No accounts. No API keys. No trackers. No ads. Offline-first; online content uses only public RSS, Google News, REST Countries and YouTube channel feeds — no keys.
 
 ---
 
 ## Features
 
-- **Reels-style vertical swipe feed.** Quick flicks advance — no full-screen drags needed.
-- **Image-rich cards** with source name, headline, AI-relevant description, category-time chips.
-- **Refresh button** with auto-scroll to top and rotating query angles so the feed stays fresh.
-- **Auto load-more** when you swipe within 5 cards of the end — the feed never dead-ends.
-- **Bookmarks** (Room) — tap the bookmark icon on any card.
-- **Swipe left** on a card to open the full article in **Chrome Custom Tabs** — your installed browser engine (cookies, ad-blockers, autofill, reader mode) with an SD AI News-themed toolbar.
-- **Share card image** — tap share on any card to send a branded 1080×1350 PNG via WhatsApp, Gmail, Telegram, X, etc.
-- **Daily 8 AM push** with the top three AI headlines. Tap → opens the feed.
-- **Home-screen widget** (4×1) showing today's top headline.
-- **Three theme modes:** AMOLED Black (default), Cyber Blue, Minimal White.
-- **Wellness overlay** — soft eye-break reminder after 30 min of continuous reading.
-- **Offline cache** — articles persist across launches via Room.
+- **Reels-style vertical swipe feed** — pull-to-refresh **and** an explicit refresh button. Auto load-more near the end; "you're all caught up" card.
+- **Hamburger side menu** (≡): Home · **News** (collapsible) · **Video News** (collapsible) · Saved · Profile, with SD-yellow active highlight. **Category dropdown** beside the logo (All, Inspiration, Sports, Politics, Tech, Science, Health, Business, Entertainment, Anime). **Live date-time** in the bar.
+- **Location-aware, global:** *National* follows your country (ISO code → Google News country edition; curated India sources when applicable). *Regional* follows your state → its **most-spoken language**, auto-detected from the internet (India state map + REST Countries) and saved — e.g., Andhra Pradesh → **Telugu** news + Telugu video. No location shared → World only.
+- **Video News** from reputable YouTube channels (World; your country in English; regional language) via key-free channel RSS. Opens in the **YouTube app** (system picker → web fallback). Thumbnails **fit** (no side-cropping).
+- **Positivity-first:** **Inspiration** (TED + youth-achievement/kindness searches) is boosted to the **top** of the feed; a **Good News** section; uplifting headlines get a ranking boost everywhere.
+- **Content safety filter** — graphic/abuse/self-harm and vulgar/sexual/body-shaming headlines are removed (word-boundaried; Good News exempt).
+- **On-device personalization** (no backend): read-state (read items sink), interest **affinity** re-rank, **reading streak** + daily goal.
+- **Smart hero** — low-resolution images fall back to a clean editorial text card instead of a blurry photo.
+- **Bookmarks** (Room), branded **share-card** image, daily 8 AM digest, home-screen widget, three themes, wellness overlay, offline cache.
+
+## What's new in 1.6.0 — general news + positivity
+
+The app evolved from AI-only into a global SD News platform. Major additions:
+
+- **Sectioned, location-driven feed.** World (global) is always on; National = your country; Regional = your city + your state's language. Drawer shows World / ‹Country› / ‹City› dynamically; nothing location-based appears without a shared location.
+- **Auto language detection.** On location resolve, the region's main language is pulled from the internet (REST Countries for the country; an India state→language map for sub-national precision) and persisted (`PrefsStore.regionalLanguage*`). `refreshAll` self-heals it if missing.
+- **Video News** (`category = "video"`) from key-free YouTube channel Atom feeds, fetched concurrently with all other feeds (`fetchAndUpsert`), grouped World / India (English) / Regional (language). National video is English-only; regional is bilingual.
+- **Inspiration + Good News** sections; `FeedRanker` boosts inspiration (top) > video > good news, plus a positive-keyword boost so uplifting stories rise.
+- **Content safety filter** in `processAndUpsert` (graphic/abuse/self-harm + vulgar/sexual/body-shaming), Good News exempt.
+- **Engagement:** read-state (`seen` table), affinity re-rank against a stable snapshot (no mid-scroll reordering), streak + daily goal.
+- **Nav redesign:** hamburger ModalNavigationDrawer (Home/News/Video/Saved/Profile) replaced the bottom bar; category dropdown + live date-time in the brand bar; new **SD News** logo everywhere.
+- Anime category; pull-to-refresh; smart hero (resolution-gated images).
+
+> The AI-news pipeline below is the project's origin and still present as a secondary source layer; the primary feed is now the general/location pipeline in `GeneralArticleRepository`.
 
 ## Zero-maintenance news pipeline
 

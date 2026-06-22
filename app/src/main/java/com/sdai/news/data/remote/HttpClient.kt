@@ -93,5 +93,5 @@ object HttpClient {
     private const val BROWSER_UA =
         "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36 " +
-            "SDAINewsBot/1.0 (+https://sdai.news/bot)"
+            "AwarelyBot/1.0 (+https://sdai.news/bot)"
 }

@@ -24,4 +24,12 @@ data class Article(
     val weight: Int = 0,
     /** "breaking" | "industry" | "community" | "research" | null */
     val tier: String? = null,
+    /** Whether the reader has already dwelled on this card. Set by the
+     *  re-rank step (from the `seen` table), not stored on the entity. */
+    val seen: Boolean = false,
+    /** YouTube video item. [category] carries its topic (tech/politics/…). */
+    val isVideo: Boolean = false,
+    /** Content language — "en" or a regional ISO code (e.g. "te"). Used to
+     *  honour the per-section English / Regional / Both toggles. */
+    val lang: String = "en",
 )

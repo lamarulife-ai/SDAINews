@@ -41,7 +41,7 @@ object Share {
     }
 
     private fun launchTextShare(context: Context, title: String, url: String) {
-        val body = "$title\n\n$url\n\nShared via SD AI News"
+        val body = "$title\n\n$url\n\nShared via Awarely"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, title)
@@ -51,7 +51,7 @@ object Share {
     }
 
     private fun launchImageShare(context: Context, title: String, url: String, cardUri: Uri) {
-        val body = "$title\n\n$url\n\nShared via SD AI News"
+        val body = "$title\n\n$url\n\nShared via Awarely"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, cardUri)

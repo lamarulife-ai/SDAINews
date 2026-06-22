@@ -7,11 +7,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.sdai.news.SDAINewsApp
+import com.sdai.news.data.db.SDAIDatabase
 import com.sdai.news.ui.screens.BookmarksScreen
 import com.sdai.news.ui.screens.ContactScreen
 import com.sdai.news.ui.screens.DisclaimerScreen
 import com.sdai.news.ui.screens.LocationPickerScreen
 import com.sdai.news.ui.screens.MainScreen
+import com.sdai.news.ui.screens.ScanHistoryScreen
+import com.sdai.news.ui.screens.ScanScreen
 import com.sdai.news.ui.screens.SettingsScreen
 import com.sdai.news.ui.screens.SetupScreen
 import com.sdai.news.ui.screens.SplashScreen
@@ -24,6 +27,8 @@ object Routes {
     const val DISCLAIMER = "disclaimer"
     const val SETUP = "setup"
     const val MAIN = "main"
+    const val SCAN = "scan"
+    const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val BOOKMARKS = "bookmarks"
     const val CONTACT = "contact"
@@ -80,7 +85,33 @@ fun NavGraph(navController: NavHostController) {
             MainScreen(
                 onOpenArticle = { article -> ArticleViewer.open(context, article.url) },
                 onOpenBookmarks = { navController.navigate(Routes.BOOKMARKS) },
+                onOpenContact = { navController.navigate(Routes.CONTACT) },
+                onOpenDisclaimer = { navController.navigate(Routes.DISCLAIMER) },
+                onOpenLocationPicker = { navController.navigate(Routes.LOCATION_PICKER) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenScanner = { navController.navigate(Routes.SCAN) },
+                onOpenHistory = { navController.navigate(Routes.HISTORY) },
+                onClearAllData = {
+                    scope.launch {
+                        val prefs = SDAINewsApp.get().prefs
+                        prefs.clearAll()
+                        SDAIDatabase.get(context).scanHistoryDao().clearAll()
+                        navController.navigate(Routes.SPLASH) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                },
+            )
+        }
+        composable(Routes.SCAN) {
+            ScanScreen(
+                onBack = { navController.popBackStack() },
+                onOpenHistory = { navController.navigate(Routes.HISTORY) },
+            )
+        }
+        composable(Routes.HISTORY) {
+            ScanHistoryScreen(
+                onOpenScanner = { navController.navigate(Routes.SCAN) },
             )
         }
         composable(Routes.SETTINGS) {

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         maybeRequestNotificationPermission()
+        com.sdai.news.analytics.AnalyticsManager.get(this).startSession()
 
         val prefs = SDAINewsApp.get().prefs
 
@@ -64,5 +65,10 @@ class MainActivity : ComponentActivity() {
             this, Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
         if (!granted) notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        com.sdai.news.analytics.AnalyticsManager.get(this).endSession()
     }
 }

@@ -8,20 +8,22 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [ArticleEntity::class, BookmarkEntity::class],
-    // v2: added `weight` and `tier` columns on articles for per-source
-    // quality scoring + tier-filter chips.
-    // v3: added `section` column for general news sections
-    // (global/national/regional). Destructive migration is acceptable —
-    // the articles table is regenerated every refresh and capped at 24 h;
-    // bookmarks survive via the OnConflictStrategy on their own table
-    // since their schema hasn't changed.
-    version = 3,
+    entities = [
+        ArticleEntity::class, BookmarkEntity::class, SeenEntity::class,
+        SessionEntity::class, CategoryViewEntity::class,
+        PollEntity::class, ReactionEntity::class,
+        ScanHistoryEntity::class,
+    ],
+    version = 8,
     exportSchema = false,
 )
 abstract class SDAIDatabase : RoomDatabase() {
     abstract fun articleDao(): ArticleDao
     abstract fun bookmarkDao(): BookmarkDao
+    abstract fun seenDao(): SeenDao
+    abstract fun analyticsDao(): AnalyticsDao
+    abstract fun pollDao(): PollDao
+    abstract fun scanHistoryDao(): ScanHistoryDao
 
     companion object {
         @Volatile private var INSTANCE: SDAIDatabase? = null
@@ -32,13 +34,7 @@ abstract class SDAIDatabase : RoomDatabase() {
                 SDAIDatabase::class.java,
                 "sdai.db",
             )
-                // Explicit migration for the v1→v2 articles-table column
-                // bump so existing bookmarks survive the upgrade. Any
-                // future schema break that we don't explicitly migrate
-                // falls back to a destructive rebuild — acceptable
-                // because the articles table is recomputed on every
-                // refresh and capped at 24h anyway.
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
@@ -63,6 +59,84 @@ abstract class SDAIDatabase : RoomDatabase() {
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE articles ADD COLUMN section TEXT")
+            }
+        }
+
+        /** v3→v4: add the read-state `seen` table. Articles/bookmarks untouched. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS seen " +
+                        "(id TEXT NOT NULL PRIMARY KEY, seenAtMillis INTEGER NOT NULL)"
+                )
+            }
+        }
+
+        /** v4→v5: add `isVideo` flag to articles. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE articles ADD COLUMN isVideo INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** v5→v6: add `lang` column to articles (defaults to English). */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE articles ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'")
+            }
+        }
+
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS scan_history " +
+                        "(barcode TEXT NOT NULL PRIMARY KEY, " +
+                        "name TEXT NOT NULL, " +
+                        "brand TEXT NOT NULL, " +
+                        "overallRating REAL NOT NULL, " +
+                        "safetyLabel TEXT NOT NULL, " +
+                        "category TEXT NOT NULL, " +
+                        "scannedAtMs INTEGER NOT NULL)"
+                )
+            }
+        }
+
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS analytics_sessions " +
+                        "(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "dayEpoch INTEGER NOT NULL, " +
+                        "openedAtMillis INTEGER NOT NULL, " +
+                        "closedAtMillis INTEGER NOT NULL DEFAULT 0, " +
+                        "articlesRead INTEGER NOT NULL DEFAULT 0)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS analytics_category_views " +
+                        "(id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "dayEpoch INTEGER NOT NULL, " +
+                        "category TEXT NOT NULL, " +
+                        "viewCount INTEGER NOT NULL DEFAULT 1)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS polls " +
+                        "(id TEXT NOT NULL PRIMARY KEY, " +
+                        "articleId TEXT NOT NULL, " +
+                        "question TEXT NOT NULL, " +
+                        "options TEXT NOT NULL, " +
+                        "votes TEXT NOT NULL, " +
+                        "createdAtMillis INTEGER NOT NULL, " +
+                        "expiresAtMillis INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS reactions " +
+                        "(id TEXT NOT NULL PRIMARY KEY, " +
+                        "articleId TEXT NOT NULL, " +
+                        "emoji TEXT NOT NULL, " +
+                        "label TEXT NOT NULL, " +
+                        "count INTEGER NOT NULL DEFAULT 0, " +
+                        "userReacted INTEGER NOT NULL DEFAULT 0)"
+                )
             }
         }
     }

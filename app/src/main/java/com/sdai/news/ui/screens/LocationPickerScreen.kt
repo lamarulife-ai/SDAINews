@@ -289,7 +289,7 @@ private fun reDetect(
         onDetecting(false)
         when (result) {
             is LocationResult.Success -> {
-                prefs.setLocation(result.location)
+                prefs.saveLocationWithLanguage(result.location)
                 onStatus("Location updated to ${result.location.label}")
                 onBack()
             }

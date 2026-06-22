@@ -10,6 +10,12 @@
     <!-- Location — one-time GPS fix at setup, then optional re-detection. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Scan to Know — camera viewfinder + haptic confirmation. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- required="false" so Play Store does not filter camera-less tablets. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
         android:name=".SDAINewsApp"
