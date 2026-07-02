@@ -5,7 +5,7 @@ title: Privacy Policy — Awarely
 # Privacy Policy — Awarely
 
 **Effective date:** 2 July 2026
-**Last updated:** 2 July 2026
+**Last updated:** 6 July 2026
 **Applies to:** Awarely for Android (package `com.sdai.news`).
 
 Published alongside the [Terms of Use](./SDAI_Terms) and [Publisher / Contact](./SDAI_Contact).
@@ -14,9 +14,11 @@ Published alongside the [Terms of Use](./SDAI_Terms) and [Publisher / Contact](.
 
 ## 1. Who we are
 
-Awarely is a free, non-commercial Android app with two parts: a **news feed**
-(World / national / regional headlines + video news) and **Scan to Know**, a
-barcode scanner that rates a product's safety. No ads, no accounts, no monetisation.
+Awarely is a free, non-commercial Android app with three parts: a **news feed**
+(World / national / regional headlines + video news), **Scan to Know** — a
+barcode scanner that rates a product's safety, and **Games** — Sudoku, kids'
+language-learning (English / Telugu), and a Word of the Day dictionary. No ads,
+no accounts, no monetisation.
 
 | | |
 |---|---|
@@ -43,7 +45,8 @@ barcode scanner that rates a product's safety. No ads, no accounts, no monetisat
 - **Camera images / video** — the scanner decodes the barcode on-device; the picture itself is never uploaded or stored.
 - **Your location** — resolved and used only on your device (see §6).
 - **Your reading behaviour** — stays on the device (§7).
-- Your contacts, calendar, files, or microphone.
+- **Voice / audio** — the microphone is used only if you tap a pronunciation-practice exercise in Learn a language; audio is processed by Android's on-device speech recognizer and is never recorded, stored, or uploaded (see §11).
+- Your contacts, calendar, or files.
 - Crash logs, performance metrics, screen views, or any analytics signal.
 
 There are **no analytics or tracking SDKs** (no Firebase Analytics, Google Analytics, Crashlytics, Adjust, AppsFlyer, Facebook SDK). The Scan feature uses Google's **ML Kit** (on-device barcode decoding) and the **Gemini API** (cloud, for ratings) — these are functional, not analytics (see §5, §10).
@@ -62,6 +65,9 @@ Stored **locally** (Room + DataStore), never transmitted to us:
 | Read-state, interest signals, reading streak | Order your feed | Room / DataStore |
 | Preferences (theme, positive-only, language, blocked sources) | Persist choices | DataStore |
 | Cache of recent headlines + images | Instant feed, brief offline use | Room + image cache |
+| **Sudoku save + stats** (puzzle, progress, times) | Continue a game, track scores | Room SQLite |
+| **Dictionary lookups** (Word of the Day + searched words) | Offline re-reading, avoid re-fetching | Room SQLite |
+| Alert subscription choices | Remember what you subscribed to | DataStore |
 
 Delete anytime via **Settings → Apps → Awarely → Storage → Clear data**, or by uninstalling.
 
@@ -80,6 +86,9 @@ Standard HTTPS requests to public endpoints, carrying no personal identifier:
 **Scan to Know**
 - **Open Food Facts** (`world.openfoodfacts.org` and sibling databases) — looks up the scanned **barcode** (or product name) to fetch public product details (name, brand, ingredients).
 - **Google Gemini API** (`generativelanguage.googleapis.com`) — the product details are sent to Google's Gemini model to generate the **rating, safety label and breakdown**. This is a Google cloud service governed by **Google's privacy policy and API terms**. Only product information is sent — no identity, location, or reading data.
+
+**Games — Word of the Day**
+- **Free Dictionary API** (`api.dictionaryapi.dev`) — looks up the **word itself** (from a list bundled in the app, or one you type) to fetch its definition, pronunciation audio and examples. No key, no account, no personal data is sent — only the word you're looking up.
 
 ---
 
@@ -121,27 +130,38 @@ Only **product data** leaves your device — never your identity, location, or r
 
 ---
 
-## 11. Permissions
+## 11. Games — Sudoku, Learn a language, Word of the Day
 
-| Permission | Purpose | Optional? |
-|---|---|---|
-| `INTERNET` | Fetch news, product lookups, ratings | Required |
-| `ACCESS_NETWORK_STATE` | Detect connectivity before refreshing | Required |
-| `CAMERA` | Live viewfinder for barcode scanning — image decoded on-device, never uploaded (§10) | Used only in Scan |
-| `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | One-time fix to localise national/regional news — resolved on-device, never transmitted (§6) | **Optional** |
-| `POST_NOTIFICATIONS` (Android 13+) | Optional daily digest | **Optional** |
+The Games tab bundles three offline-first activities:
 
-No microphone, contacts, calendar, SMS, call logs, or arbitrary file access.
+- **Sudoku** — puzzles are generated **on your device**; your board, progress, hints and stats are saved locally (Room) and never leave your device.
+- **Learn a language** (English / Telugu) — kids' reading games (alphabet, words, rhymes, stories, grammar). All content is bundled in the app; nothing is fetched or sent over the network. Some exercises let a child **hear a word read aloud** using Android's built-in text-to-speech (audio is generated on-device and never recorded) and optionally **repeat it back** using Android's built-in speech recognizer — this is the only feature that uses the **microphone**, it runs on-device, and no audio is ever stored, transmitted, or heard by us.
+- **Word of the Day** — see §5 for the dictionary lookup; results are cached locally so previously seen words work offline.
 
 ---
 
-## 12. Age suitability & children
+## 12. Permissions
+
+| Permission | Purpose | Optional? |
+|---|---|---|
+| `INTERNET` | Fetch news, product lookups, ratings, dictionary definitions | Required |
+| `ACCESS_NETWORK_STATE` | Detect connectivity before refreshing | Required |
+| `CAMERA` | Live viewfinder for barcode scanning — image decoded on-device, never uploaded (§10) | Used only in Scan |
+| `RECORD_AUDIO` | On-device speech recognition for pronunciation-practice exercises in Learn a language — audio is never recorded or uploaded (§11) | Used only in that exercise |
+| `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | One-time fix to localise national/regional news — resolved on-device, never transmitted (§6) | **Optional** |
+| `POST_NOTIFICATIONS` (Android 13+) | Optional daily digest | **Optional** |
+
+No contacts, calendar, SMS, call logs, or arbitrary file access.
+
+---
+
+## 13. Age suitability & children
 
 Awarely presents real-world news and is intended for a **general audience aged 16 and above** (rated Teen), with on-device content filtering (§8). It is **not directed at children under 13** and collects no personal information from anyone, so no parental-consent mechanism is required.
 
 ---
 
-## 13. Retention, your rights, security
+## 14. Retention, your rights, security
 
 - No server-side data is collected, so there is nothing for us to retain. Local data stays on your device until you clear it; cached news is auto-pruned (~1 day).
 - **Access / delete / export:** all local data is on your device — inspect or clear it via Android's app settings; uninstalling removes everything.
@@ -150,7 +170,7 @@ Awarely presents real-world news and is intended for a **general audience aged 1
 
 ---
 
-## 14. Changes & contact
+## 15. Changes & contact
 
 We may update this policy (e.g. a new source). Material changes are surfaced in-app on first launch after the update.
 
